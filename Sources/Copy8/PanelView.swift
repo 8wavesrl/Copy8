@@ -6,7 +6,6 @@ struct PanelView: View {
     let settings: Settings
     let history: History
     let onSearchField: (NSTextField) -> Void
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: 0) {
@@ -18,7 +17,7 @@ struct PanelView: View {
                     .frame(maxWidth: settings.showPreview ? nil : .infinity, maxHeight: .infinity)
                 if settings.showPreview {
                     VerticalHairline()
-                    PreviewPane(item: model.selectedItem, terms: model.terms, history: history)
+                    PreviewPane(item: model.selectedItem, terms: model.terms, history: history, days: settings.days)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
@@ -34,7 +33,6 @@ struct PanelView: View {
         .clipShape(RoundedRectangle(cornerRadius: PanelMetrics.radius, style: .continuous))
         .overlay(WaterGloss(radius: PanelMetrics.radius, amount: glossAmount))
         .overlay(ModalBorder(glass: settings.glass, radius: PanelMetrics.radius))
-        .scaleEffect(model.appeared || reduceMotion ? 1 : 0.98)
     }
 
     // MARK: Intestazione con la ricerca
@@ -73,6 +71,24 @@ struct PanelView: View {
         settings.glass ? Glass.gloss(settings.glassIntensity) : 0
     }
 
+    /// Tasto per scegliere la riga in base alla posizione, solo per le prime nove: "3" a ricerca vuota
+    /// (il numero da solo incolla), "⌘3" mentre si cerca (i numeri sono testo, e ⌘ + numero mette in coda).
+    private func positionLabel(for index: Int) -> String? {
+        guard index < 9 else { return nil }
+        return model.query.isEmpty ? "\(index + 1)" : "⌘\(index + 1)"
+    }
+
+    private var queueSummary: String {
+        let count = model.queue.count
+        return "\(count) in coda · un clic senza ⌘ aggiunge l’ultimo e incolla tutto"
+    }
+
+    private var queuePasteLabel: String {
+        let verb = settings.pasteDirectly ? "Incolla" : "Copia"
+        let count = model.queue.count
+        return count == 1 ? "\(verb) 1 elemento" : "\(verb) \(count) in ordine"
+    }
+
     private var resultCount: String {
         model.results.count == 1 ? "1 risultato" : "\(model.results.count) risultati"
     }
@@ -88,20 +104,26 @@ struct PanelView: View {
                 ScrollView(.vertical) {
                     LazyVStack(alignment: .leading, spacing: 0) {
                         Color.clear.frame(height: 4).id("top")
-                        ForEach(model.sections) { section in
-                            Text(section.label)
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(Palette.text2)
-                                .padding(.horizontal, 20)
-                                .padding(.top, section.id == model.sections.first?.id ? 6 : 14)
-                                .padding(.bottom, 4)
-                                .accessibilityAddTraits(.isHeader)
-                            ForEach(section.rows) { row in
-                                ClipRow(item: row.item, selected: row.index == model.selection, terms: model.terms)
-                                    .id(row.id)
-                                    .onHover { inside in if inside { model.hover(row.index) } }
-                                    .onTapGesture { model.actions?.paste(row.item, plain: false) }
-                                    .contextMenu { rowMenu(row.item) }
+                        ForEach(model.entries) { entry in
+                            switch entry {
+                            case .header(let section):
+                                SectionHeader(section: section, days: settings.days)
+                                    .padding(.horizontal, 20)
+                                    .padding(.top, section.isFirst ? 6 : 14)
+                                    .padding(.bottom, 4)
+                            case .row(let row):
+                                ClipRow(item: row.item, selected: row.index == model.selection, terms: model.terms,
+                                        position: positionLabel(for: row.index),
+                                        order: model.queueOrder(of: row.item.id)) {
+                                    model.actions?.togglePin(row.item)
+                                }
+                                .onHover { inside in if inside { model.hover(row.index) } }
+                                .onTapGesture {
+                                    // Con ⌘ la riga entra nella coda; senza, si incolla (la coda più questa riga).
+                                    let flags = NSApp.currentEvent?.modifierFlags ?? NSEvent.modifierFlags
+                                    model.actions?.choose(row.item, chaining: flags.contains(.command))
+                                }
+                                .contextMenu { rowMenu(row.item) }
                             }
                         }
                         Color.clear.frame(height: 8)
@@ -112,7 +134,7 @@ struct PanelView: View {
                     if model.scrollTarget < 0 {
                         proxy.scrollTo("top", anchor: .top)
                     } else {
-                        proxy.scrollTo(model.scrollTarget)
+                        proxy.scrollTo(PanelModel.rowID(model.scrollTarget))
                     }
                 }
             }
@@ -125,6 +147,12 @@ struct PanelView: View {
         Button("Incolla come testo semplice") { model.actions?.paste(item, plain: true) }
             .disabled(item.kind == .image)
         Button("Copia") { model.actions?.copy(item) }
+        Divider()
+        Button(model.queueOrder(of: item.id) == nil ? "Aggiungi alla coda (⌘ clic)" : "Togli dalla coda") {
+            model.actions?.toggleQueue(item)
+        }
+        Divider()
+        Button(item.pinned ? "Togli dai fissati" : "Fissa (non viene mai cancellato)") { model.actions?.togglePin(item) }
         Divider()
         Button("Elimina", role: .destructive) { model.actions?.delete(item) }
     }
@@ -153,14 +181,23 @@ struct PanelView: View {
 
     private var footer: some View {
         HStack(spacing: 16) {
-            Text(footerSummary)
+            Text(model.queue.isEmpty ? footerSummary : queueSummary)
                 .monospacedDigit()
                 .lineLimit(1)
+                .foregroundStyle(model.queue.isEmpty ? Palette.text2 : Palette.text)
             Spacer(minLength: 8)
             HStack(spacing: 16) {
-                KeyHint(keys: ["↩"], label: settings.pasteDirectly ? "Incolla" : "Copia")
-                KeyHint(keys: ["⌥", "↩"], label: "Testo semplice")
-                KeyHint(keys: ["esc"], label: "Chiudi")
+                if model.queue.isEmpty {
+                    KeyHint(keys: ["↩"], label: settings.pasteDirectly ? "Incolla" : "Copia")
+                    if settings.showPreview {
+                        KeyHint(keys: ["⌘", "P"], label: model.selectedItem?.pinned == true ? "Togli" : "Fissa")
+                    }
+                    KeyHint(keys: ["⌥", "↩"], label: "Testo semplice")
+                    KeyHint(keys: ["esc"], label: "Chiudi")
+                } else {
+                    KeyHint(keys: ["↩"], label: queuePasteLabel)
+                    KeyHint(keys: ["esc"], label: "Svuota la coda")
+                }
             }
         }
         .font(.system(size: 11))
@@ -171,13 +208,45 @@ struct PanelView: View {
     }
 
     private var footerSummary: String {
-        let count = model.results.count
         let days = settings.days
         let period = days == 1 ? "ultimo giorno" : "ultimi \(days) giorni"
-        if model.terms.isEmpty {
-            return "\(period.capitalizedFirst) · \(count) \(count == 1 ? "elemento" : "elementi")"
+        guard model.terms.isEmpty else {
+            let count = model.results.count
+            return "\(count) \(count == 1 ? "risultato" : "risultati") · \(period)"
         }
-        return "\(count) \(count == 1 ? "risultato" : "risultati") · \(period)"
+        let pinned = model.pinnedCount
+        let count = model.results.count - pinned
+        var summary = "\(period.capitalizedFirst) · \(count) \(count == 1 ? "elemento" : "elementi")"
+        if pinned > 0 { summary += " · \(pinned) \(pinned == 1 ? "fissato" : "fissati")" }
+        return summary
+    }
+}
+
+// MARK: - Intestazione di sezione
+
+struct SectionHeader: View {
+    let section: PanelModel.Section
+    let days: Int
+
+    var body: some View {
+        HStack(spacing: 5) {
+            if section.isPinned {
+                Image(systemName: "pin.fill")
+                    .font(.system(size: 9, weight: .semibold))
+            }
+            Text(section.label)
+                .font(.system(size: 11, weight: .semibold))
+            Spacer(minLength: 8)
+            if section.isPinned {
+                // Spiegazione breve, visibile solo quando c'è almeno un elemento fissato.
+                Text(days == 1 ? "Restano anche dopo 1 giorno" : "Restano anche dopo i \(days) giorni")
+                    .font(.system(size: 11))
+            }
+        }
+        .foregroundStyle(Palette.text2)
+        .lineLimit(1)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
     }
 }
 
@@ -187,15 +256,37 @@ struct ClipRow: View {
     let item: ClipItem
     let selected: Bool
     let terms: [String]
+    /// Tasto per posizione: "3" a ricerca vuota, "⌘3" mentre si cerca.
+    let position: String?
+    /// Posizione nella coda degli elementi da incollare insieme (1, 2, 3…), se la riga è in coda.
+    let order: Int?
+    let onTogglePin: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
-            TypeIcon(item: item, selected: selected)
+            TypeIcon(item: item, selected: selected, order: order)
             Text(Highlight.make(item.title, terms: terms, selected: selected, monospaced: item.kind.isMonospaced))
                 .font(item.kind.isMonospaced ? .system(size: 13, design: .monospaced) : .system(size: 13))
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
+            if selected || item.pinned || position != nil {
+                HStack(spacing: 6) {
+                    if selected || item.pinned {
+                        // Un tocco sulla puntina ha la precedenza su quello della riga, che incollerebbe.
+                        Image(systemName: item.pinned ? "pin.fill" : "pin")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(selected ? Color.white : Palette.text2)
+                            .frame(width: 20, height: 20)
+                            .contentShape(Rectangle())
+                            .onTapGesture(perform: onTogglePin)
+                            .help(item.pinned ? "Togli dai fissati (⌘P)" : "Fissa: resta in cima e non viene mai cancellato (⌘P)")
+                    }
+                    if let position {
+                        KeyBadge(label: position, selected: selected)
+                    }
+                }
+            }
             Text(DayFormat.time.string(from: item.copiedAt))
                 .font(.system(size: 11))
                 .monospacedDigit()
@@ -207,24 +298,61 @@ struct ClipRow: View {
         .frame(height: 44)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(selected ? Palette.accent : Color.clear)
+                .fill(selected ? Palette.accent : (order == nil ? Color.clear : Palette.accent.opacity(0.14)))
         )
         .contentShape(Rectangle())
         .padding(.horizontal, 8)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+        .accessibilityValue([item.pinned ? "Fissato" : nil, order.map { "In coda, posizione \($0)" }]
+            .compactMap { $0 }.joined(separator: ", "))
+        .accessibilityHint(position.map { "Tasto \($0)" } ?? "")
+        .accessibilityAction(named: item.pinned ? "Togli dai fissati" : "Fissa", onTogglePin)
+    }
+}
+
+/// Etichetta del tasto che sceglie la riga in base alla posizione.
+struct KeyBadge: View {
+    let label: String
+    let selected: Bool
+
+    var body: some View {
+        Text(label)
+            .font(.system(size: 10, weight: .medium))
+            .monospacedDigit()
+            .foregroundStyle(selected ? Color.white : Palette.text2)
+            .padding(.horizontal, 4)
+            .frame(minWidth: 18, minHeight: 18)
+            .background(
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .fill(selected ? Color.white.opacity(0.2) : Palette.fill)
+            )
+            .accessibilityHidden(true)
     }
 }
 
 struct TypeIcon: View {
     let item: ClipItem
     let selected: Bool
+    /// Se la riga è in coda, al posto dell'icona c'è il suo numero d'ordine.
+    var order: Int?
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .fill(selected ? Color.white.opacity(0.2) : Palette.fill)
-            if item.kind == .color, let swatch = item.swatch {
+            if let order {
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(selected ? Color.white : Palette.accent)
+                Text("\(order)")
+                    .font(.system(size: 13, weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(selected ? Palette.accent : Color.white)
+            } else {
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(selected ? Color.white.opacity(0.2) : Palette.fill)
+            }
+            if order != nil {
+                EmptyView()
+            } else if item.kind == .color, let swatch = item.swatch {
                 Circle()
                     .fill(swatch)
                     .overlay(Circle().strokeBorder(Color.black.opacity(0.2), lineWidth: 0.5))
@@ -247,6 +375,7 @@ struct PreviewPane: View {
     let item: ClipItem?
     let terms: [String]
     let history: History
+    let days: Int
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -337,11 +466,11 @@ struct PreviewPane: View {
 
     private func metadata(_ item: ClipItem) -> some View {
         Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
-            ForEach(Array(item.metadata.enumerated()), id: \.offset) { _, row in
+            ForEach(Array(item.metadata(days: days).enumerated()), id: \.offset) { _, row in
                 GridRow {
                     Text(row.0)
                         .foregroundStyle(Palette.text2)
-                        .frame(width: 80, alignment: .leading)
+                        .frame(width: 96, alignment: .leading)
                     Text(row.1)
                         .monospacedDigit()
                         .lineLimit(2)
@@ -568,7 +697,7 @@ struct SearchField: NSViewRepresentable {
         field.focusRingType = .none
         field.font = .systemFont(ofSize: 20)
         field.textColor = Tokens.text
-        field.placeholderAttributedString = NSAttributedString(string: "Cerca negli appunti", attributes: [
+        field.placeholderAttributedString = NSAttributedString(string: "Cerca negli appunti, o premi 1–9", attributes: [
             .foregroundColor: Tokens.text2,
             .font: NSFont.systemFont(ofSize: 20),
             .kern: -0.2,

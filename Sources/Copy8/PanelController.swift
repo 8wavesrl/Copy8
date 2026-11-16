@@ -83,22 +83,41 @@ final class PanelController: NSObject, NSWindowDelegate, PanelActions {
         panel.alphaValue = 0
         panel.makeKeyAndOrderFront(nil)
         if let searchField { panel.makeFirstResponder(searchField) }
+        // Disegna subito lo stato aggiornato, senza aspettare il prossimo evento.
+        panel.contentView?.layoutSubtreeIfNeeded()
+        panel.displayIfNeeded()
         NSAnimationContext.runAnimationGroup { context in
             context.duration = reduceMotion ? 0.08 : 0.12
             context.timingFunction = CAMediaTimingFunction(name: .easeOut)
             panel.animator().alphaValue = 1
         }
-        if reduceMotion {
-            model.appeared = true
-        } else {
-            withAnimation(.easeOut(duration: 0.12)) { model.appeared = true }
-        }
+        if !reduceMotion { animateScaleIn() }
         panel.invalidateShadow()
+    }
+
+    /// Scala 0,98 → 1 in 120 ms con Core Animation: gira nel compositore di sistema anche se Copy8
+    /// non è l'app attiva, e lo stato finale resta sempre al 100%.
+    private func animateScaleIn() {
+        guard let layer = panel.contentView?.layer else { return }
+        let scale: CGFloat = 0.98
+        let bounds = layer.bounds
+        // Il layer ha l'ancora nell'angolo: la traslazione tiene fermo il centro.
+        let start = CATransform3DConcat(
+            CATransform3DMakeScale(scale, scale, 1),
+            CATransform3DMakeTranslation(bounds.width * (1 - scale) / 2, bounds.height * (1 - scale) / 2, 0)
+        )
+        let animation = CABasicAnimation(keyPath: "transform")
+        animation.fromValue = NSValue(caTransform3D: start)
+        animation.toValue = NSValue(caTransform3D: CATransform3DIdentity)
+        animation.duration = 0.12
+        animation.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        layer.add(animation, forKey: "appear")
     }
 
     func hide(animated: Bool = true) {
         guard isShown else { return }
         isShown = false
+        if !model.queue.isEmpty { model.queue = [] }
         guard animated else {
             panel.orderOut(nil)
             panel.alphaValue = 1
@@ -170,19 +189,55 @@ final class PanelController: NSObject, NSWindowDelegate, PanelActions {
         watcher.ignoredChangeCount = Paster.write(item, plain: plain, history: history)
         history.touch(item)
         hide(animated: false)
+        deliver(pasted: plain ? "Incollato come testo semplice" : "Incollato nell’app attiva",
+                copied: "Copiato: premi ⌘V per incollare", on: screen)
+    }
+
+    func choose(_ item: ClipItem, chaining: Bool) {
+        if chaining {
+            toggleQueue(item)
+        } else if model.queue.isEmpty {
+            paste(item, plain: false)
+        } else {
+            pasteChain(model.chain(endingWith: item.id))
+        }
+    }
+
+    func toggleQueue(_ item: ClipItem) {
+        model.toggleQueue(item.id)
+    }
+
+    /// Incolla insieme più elementi, nell'ordine in cui sono stati scelti.
+    private func pasteChain(_ ids: [Int64]) {
+        let available = history.visible
+        let items = ids.compactMap { id in available.first { $0.id == id } }
+        guard items.count > 1 else {
+            if let only = items.first { paste(only, plain: false) } else { model.queue = [] }
+            return
+        }
+        let screen = panel.screen
+        watcher.ignoredChangeCount = Paster.write(items, history: history)
+        hide(animated: false)
+        for item in items { history.touch(item) }
+        deliver(pasted: "Incollati \(items.count) elementi in ordine",
+                copied: "Copiati \(items.count) elementi: premi ⌘V per incollare", on: screen)
+    }
+
+    /// Dopo aver scritto negli appunti: incolla nell'app attiva se può, altrimenti avvisa che è solo copiato.
+    private func deliver(pasted: String, copied: String, on screen: NSScreen?) {
         guard settings.pasteDirectly else {
-            toast.show("Copiato: premi ⌘V per incollare", on: screen)
+            toast.show(copied, on: screen)
             return
         }
         if Paster.isTrusted {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { Paster.sendPaste() }
-            toast.show(plain ? "Incollato come testo semplice" : "Incollato nell’app attiva", on: screen)
+            toast.show(pasted, on: screen)
         } else {
             if !askedForTrust {
                 askedForTrust = true
                 Paster.requestTrust()
             }
-            toast.show("Copiato: premi ⌘V per incollare", on: screen)
+            toast.show(copied, on: screen)
         }
     }
 
@@ -196,6 +251,12 @@ final class PanelController: NSObject, NSWindowDelegate, PanelActions {
 
     func delete(_ item: ClipItem) {
         history.delete(item)
+    }
+
+    func togglePin(_ item: ClipItem) {
+        let latest = history.current(item)
+        history.setPinned(latest, !latest.pinned)
+        model.select(id: item.id)
     }
 
     func openSettings() {
@@ -219,14 +280,29 @@ final class PanelController: NSObject, NSWindowDelegate, PanelActions {
         case kVK_PageDown: model.move(by: 8); return true
         case kVK_PageUp: model.move(by: -8); return true
         case kVK_Return, kVK_ANSI_KeypadEnter:
-            if let item = model.selectedItem { paste(item, plain: mods.contains(.option)) }
+            if mods == .command {
+                // ⌘↩ mette in coda la riga selezionata, come ⌘ clic.
+                if let item = model.selectedItem { toggleQueue(item) }
+            } else if !model.queue.isEmpty {
+                pasteChain(model.queue)
+            } else if let item = model.selectedItem {
+                paste(item, plain: mods.contains(.option))
+            }
             return true
         case kVK_Escape:
-            if model.query.isEmpty { hide() } else { model.query = "" }
+            if !model.queue.isEmpty {
+                model.queue = []
+            } else if model.query.isEmpty {
+                hide()
+            } else {
+                model.query = ""
+            }
             return true
         default:
             break
         }
+
+        if choosesRow(event) { return true }
 
         guard mods == .command else { return false }
         if Int(event.keyCode) == kVK_Delete {
@@ -235,12 +311,16 @@ final class PanelController: NSObject, NSWindowDelegate, PanelActions {
         }
         let key = event.charactersIgnoringModifiers?.lowercased() ?? ""
         if let digit = Int(key), (1...9).contains(digit) {
-            if digit <= model.results.count { paste(model.results[digit - 1], plain: false) }
+            // ⌘ + numero mette in coda la riga in quella posizione, come ⌘ clic.
+            if digit <= model.results.count { toggleQueue(model.results[digit - 1]) }
             return true
         }
         switch key {
         case ",": openSettings(); return true
         case "w": hide(); return true
+        case "p":
+            if let item = model.selectedItem { togglePin(item) }
+            return true
         case "a": return send(#selector(NSText.selectAll(_:)))
         case "x": return send(#selector(NSText.cut(_:)))
         case "v": return send(#selector(NSText.paste(_:)))
@@ -254,6 +334,17 @@ final class PanelController: NSObject, NSWindowDelegate, PanelActions {
         default:
             return false
         }
+    }
+
+    /// A ricerca vuota un numero da 1 a 9 sceglie la riga corrispondente, come un clic senza ⌘:
+    /// la incolla, insieme alla coda se ce n'è una. Appena si scrive qualcosa i numeri tornano testo.
+    private func choosesRow(_ event: NSEvent) -> Bool {
+        let mods = event.modifierFlags.intersection([.command, .option, .control, .shift])
+        guard mods.isEmpty, !event.isARepeat, model.query.isEmpty,
+              let digit = Int(event.charactersIgnoringModifiers ?? ""),
+              (1...9).contains(digit), digit <= model.results.count else { return false }
+        choose(model.results[digit - 1], chaining: false)
+        return true
     }
 
     private func send(_ action: Selector) -> Bool {

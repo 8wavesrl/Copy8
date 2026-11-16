@@ -33,8 +33,16 @@ if [ ! -f build/AppIcon.icns ]; then
 fi
 cp build/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
-codesign --force --sign - "$APP"
-echo "Creato $APP"
+# Con un certificato stabile macOS ricorda i permessi tra una compilazione e l'altra
+# (vedi scripts/make-signing-cert.sh). Senza, la firma è ad-hoc e cambia ogni volta.
+SIGN_ID="${COPY8_SIGN_ID:-Copy8 Local Signing}"
+if security find-identity -p codesigning 2>/dev/null | grep -q "\"$SIGN_ID\""; then
+    codesign --force --sign "$SIGN_ID" "$APP"
+    echo "Creato $APP, firmata con \"$SIGN_ID\""
+else
+    codesign --force --sign - "$APP"
+    echo "Creato $APP, firma ad-hoc (per una firma stabile: scripts/make-signing-cert.sh)"
+fi
 
 if [ "$MAKE_DMG" = 1 ]; then
     VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" Support/Info.plist)

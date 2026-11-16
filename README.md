@@ -31,8 +31,10 @@ Per incollare direttamente nell'app attiva Copy8 simula ⌘V, e macOS lo consent
 in Impostazioni di Sistema › Privacy e sicurezza › Accessibilità. Senza permesso l'elemento viene copiato
 negli appunti e basta premere ⌘V.
 
-La build è firmata ad-hoc: dopo ogni ricompilazione macOS la considera un'app nuova. Se l'incolla smette di
-funzionare, togli Copy8 dall'elenco Accessibilità con il tasto − e aggiungilo di nuovo.
+macOS lega i permessi alla firma dell'app. Se compili da solo, crea una volta un certificato autofirmato con
+`scripts/make-signing-cert.sh`: `build-app.sh` lo usa in automatico e i permessi restano validi a ogni
+ricompilazione. Senza certificato la firma è ad-hoc e cambia ogni volta: se l'incolla smette di funzionare,
+togli Copy8 dall'elenco Accessibilità con il tasto − e aggiungilo di nuovo.
 
 ## Nella finestra
 
@@ -41,18 +43,42 @@ funzionare, togli Copy8 dall'elenco Accessibilità con il tasto − e aggiungilo
 | ↑ ↓, Pagina su/giù | Scegli l'elemento |
 | ↩ | Incolla nell'app attiva |
 | ⌥↩ | Incolla come testo semplice |
-| ⌘1 … ⌘9 | Incolla l'elemento in quella posizione |
+| 1 … 9 | A ricerca vuota, incolla l'elemento in quella posizione (il numero è sulla riga) |
+| ⌘ clic, ⌘1 … ⌘9, ⌘↩ | Mette la riga in coda, per incollare più elementi insieme (vedi sotto) |
 | ⌘C | Copia senza incollare (se nel campo di ricerca non c'è testo selezionato) |
+| ⌘P | Fissa l'elemento con la puntina, o lo toglie dai fissati |
 | ⌘⌫ | Elimina l'elemento |
 | ⌘, | Impostazioni |
-| esc | Svuota la ricerca, poi chiude |
+| esc | Svuota la coda, poi la ricerca, poi chiude |
 
 La ricerca ignora maiuscole e accenti e richiede tutte le parole scritte, in qualunque punto del testo o
-nel nome dell'app di origine. Clic destro su una riga per incollare, copiare o eliminare.
+nel nome dell'app di origine. A ricerca vuota i tasti 1–9 scelgono una riga: per cercare un testo che
+inizia con un numero, scrivi prima uno spazio. Clic destro su una riga per incollare, copiare, fissare o eliminare.
+
+### Incollare più elementi insieme
+
+Tieni premuto ⌘ e scegli le righe una dopo l'altra, con un clic o con il loro numero: entrano in coda
+nell'ordine in cui le scegli, e al posto dell'icona compare il numero d'ordine. Poi scegli l'ultima senza ⌘,
+con un clic o con il numero: Copy8 incolla tutto in quell'ordine. Per esempio ⌘ clic sulle righe 1, 6 e 3,
+poi clic sulla 8, incolla 1, 6, 3, 8.
+
+- ↩ incolla la coda così com'è; esc la svuota; ⌘ clic su una riga già in coda la toglie.
+- La coda resta mentre cerchi, quindi puoi cercare, aggiungere e cercare ancora.
+- Se gli elementi sono tutti testo vengono incollati come un testo solo, una riga per elemento e senza
+  formattazione. Se ci sono immagini o file ogni elemento resta separato negli appunti, e dipende dall'app
+  di destinazione se li incolla tutti o solo il primo.
+
+### Elementi fissati
+
+Un elemento fissato con la puntina (⌘P, il clic sulla puntina della riga selezionata o il menu con il tasto
+destro) sta nella sezione "Fissati" in cima all'elenco e non viene mai cancellato in automatico: né dopo i
+giorni impostati né con "Cancella cronologia". Si elimina solo a mano. Nell'anteprima la riga
+"Conservazione" dice fino a quando resta un elemento non fissato.
 
 ## Impostazioni
 
-- **Conserva gli elementi per**: numero di giorni (1–365, default 7). Quello che è più vecchio viene eliminato.
+- **Conserva gli elementi per**: numero di giorni (1–365, default 7). Quello che è più vecchio viene eliminato,
+  tranne gli elementi fissati.
 - **Incolla direttamente nell'app attiva**: se spento, Copy8 copia soltanto.
 - **Apri la cronologia**: clicca e premi la nuova combinazione (serve ⌘, ⌃ o ⌥).
 - **Avvia al login**.
@@ -64,7 +90,8 @@ nel nome dell'app di origine. Clic destro su una riga per incollare, copiare o e
   riflessi (filo di luce sul bordo, riflesso in alto, bordo inferiore più scuro) e un alone dietro il testo
   che lo tiene leggibile su qualsiasi sfondo.
 - **Ignora password e contenuti riservati**: salta quello che i password manager marcano come riservato.
-- **Cancella cronologia…**: si può annullare finché la finestra delle impostazioni è aperta.
+- **Cancella cronologia…**: si può annullare finché la finestra delle impostazioni è aperta. Gli elementi
+  fissati restano.
 
 ## Dati
 

@@ -32,13 +32,15 @@ struct ClipItem: Identifiable {
     let sourceBundle: String?
     let copiedAt: Date
     let hash: String
+    /// Fissato con la puntina: resta in cima e non viene mai cancellato in automatico.
+    let pinned: Bool
     /// Una riga sola, già accorciata, per l'elenco.
     let title: String
     /// Testo normalizzato (minuscole, senza accenti) in UTF-8 per la ricerca full text.
     let searchKey: [UInt8]
 
     init(id: Int64, kind: ClipKind, text: String, imageFile: String?, width: Int, height: Int, byteCount: Int,
-         sourceName: String?, sourceBundle: String?, copiedAt: Date, hash: String) {
+         sourceName: String?, sourceBundle: String?, copiedAt: Date, hash: String, pinned: Bool = false) {
         self.id = id
         self.kind = kind
         self.text = text
@@ -50,13 +52,15 @@ struct ClipItem: Identifiable {
         self.sourceBundle = sourceBundle
         self.copiedAt = copiedAt
         self.hash = hash
+        self.pinned = pinned
         title = ClipItem.makeTitle(kind: kind, text: text)
         searchKey = Array(Search.fold(text + "\n" + (sourceName ?? "")).utf8)
     }
 
-    func with(kind: ClipKind? = nil, copiedAt: Date, sourceName: String?, sourceBundle: String?) -> ClipItem {
-        ClipItem(id: id, kind: kind ?? self.kind, text: text, imageFile: imageFile, width: width, height: height,
-                 byteCount: byteCount, sourceName: sourceName, sourceBundle: sourceBundle, copiedAt: copiedAt, hash: hash)
+    func with(copiedAt: Date? = nil, pinned: Bool? = nil) -> ClipItem {
+        ClipItem(id: id, kind: kind, text: text, imageFile: imageFile, width: width, height: height,
+                 byteCount: byteCount, sourceName: sourceName, sourceBundle: sourceBundle,
+                 copiedAt: copiedAt ?? self.copiedAt, hash: hash, pinned: pinned ?? self.pinned)
     }
 
     func matches(_ needle: [UInt8]) -> Bool {
@@ -113,10 +117,13 @@ extension ClipItem {
 
     var fileURLs: [URL] { text.split(separator: "\n").map { URL(fileURLWithPath: String($0)) } }
 
-    var metadata: [(String, String)] {
+    func metadata(days: Int) -> [(String, String)] {
         var rows: [(String, String)] = [
             ("Origine", sourceName ?? "Sconosciuta"),
             ("Copiato", DayFormat.copied(copiedAt)),
+            ("Conservazione", pinned
+                ? "Fissato, non si cancella · ⌘P per toglierlo"
+                : "Fino a \(DayFormat.until(copiedAt.addingTimeInterval(Double(days) * 86_400))) · ⌘P per fissarlo"),
         ]
         switch kind {
         case .text:
@@ -287,6 +294,17 @@ enum DayFormat {
     }
 
     static func copied(_ date: Date) -> String { "\(dayLabel(date)) alle \(time.string(from: date))" }
+
+    /// Data futura in forma breve: "oggi alle 15:30", "domani alle 15:30", "giovedì 20 novembre".
+    static func until(_ date: Date, now: Date = Date()) -> String {
+        let calendar = Calendar.current
+        let diff = calendar.dateComponents([.day], from: calendar.startOfDay(for: now), to: calendar.startOfDay(for: date)).day ?? 0
+        switch diff {
+        case ...0: return "oggi alle \(time.string(from: date))"
+        case 1: return "domani alle \(time.string(from: date))"
+        default: return weekdayAndDate.string(from: date)
+        }
+    }
 }
 
 enum Numbers {

@@ -6,6 +6,10 @@ protocol PanelActions: AnyObject {
     func paste(_ item: ClipItem, plain: Bool)
     func copy(_ item: ClipItem)
     func delete(_ item: ClipItem)
+    func togglePin(_ item: ClipItem)
+    /// Una riga è stata scelta: con `chaining` (⌘ premuto) entra nella coda, altrimenti si incolla.
+    func choose(_ item: ClipItem, chaining: Bool)
+    func toggleQueue(_ item: ClipItem)
     func openSettings()
     func focusSearch()
 }
@@ -20,11 +24,28 @@ final class PanelModel {
         var id: Int64 { item.id }
     }
 
-    struct Section: Identifiable {
-        let id: Date
+    struct Section {
+        let day: Date
         let label: String
-        var rows: [Row]
+        let isPinned: Bool
+        let isFirst: Bool
     }
+
+    /// L'elenco è una sola sequenza piatta di intestazioni e righe: una riga non cambia mai contenitore
+    /// quando viene fissata o tolta dai fissati, così non restano a schermo copie vecchie.
+    enum Entry: Identifiable {
+        case header(Section)
+        case row(Row)
+
+        var id: String {
+            switch self {
+            case .header(let section): return section.isPinned ? "h-fissati" : "h-\(Int(section.day.timeIntervalSince1970))"
+            case .row(let row): return "r-\(row.item.id)"
+            }
+        }
+    }
+
+    static func rowID(_ id: Int64) -> String { "r-\(id)" }
 
     var query = "" {
         didSet {
@@ -35,11 +56,13 @@ final class PanelModel {
         }
     }
     var selection = 0
-    var appeared = false
     private(set) var results: [ClipItem] = []
-    private(set) var sections: [Section] = []
+    private(set) var entries: [Entry] = []
     private(set) var terms: [String] = []
     private(set) var poolCount = 0
+    private(set) var pinnedCount = 0
+    /// Coda degli elementi da incollare insieme, nell'ordine in cui sono stati scelti con ⌘.
+    var queue: [Int64] = []
     /// Id della riga da rendere visibile; -1 significa "torna in cima".
     private(set) var scrollTarget: Int64 = -1
     private(set) var scrollTick = 0
@@ -60,26 +83,62 @@ final class PanelModel {
 
     func refresh() {
         let cutoff = Date().addingTimeInterval(-Double(settings.days) * 86_400)
-        let pool = history.visible.prefix { $0.copiedAt >= cutoff }
+        // I fissati restano sempre, anche oltre i giorni impostati.
+        let pool = history.visible.filter { $0.pinned || $0.copiedAt >= cutoff }
         poolCount = pool.count
         terms = Search.terms(query)
         let needles = terms.map { Array($0.utf8) }
-        results = needles.isEmpty ? Array(pool) : pool.filter { item in needles.allSatisfy(item.matches) }
+        let matching = needles.isEmpty ? pool : pool.filter { item in needles.allSatisfy(item.matches) }
+        let pinned = matching.filter(\.pinned)
+        results = pinned + matching.filter { !$0.pinned }
+        pinnedCount = pinned.count
 
-        var built: [Section] = []
+        var built: [Entry] = []
+        var currentHeader: String?
         for (index, item) in results.enumerated() {
-            let day = DayFormat.dayKey(item.copiedAt)
-            if built.last?.id != day {
-                built.append(Section(id: day, label: DayFormat.dayLabel(item.copiedAt), rows: []))
+            let section = item.pinned
+                ? Section(day: .distantFuture, label: "Fissati", isPinned: true, isFirst: built.isEmpty)
+                : Section(day: DayFormat.dayKey(item.copiedAt), label: DayFormat.dayLabel(item.copiedAt), isPinned: false, isFirst: built.isEmpty)
+            let header = Entry.header(section)
+            if header.id != currentHeader {
+                built.append(header)
+                currentHeader = header.id
             }
-            built[built.count - 1].rows.append(Row(index: index, item: item))
+            built.append(.row(Row(index: index, item: item)))
         }
-        sections = built
+        entries = built
         if selection >= results.count { selection = max(0, results.count - 1) }
     }
 
+    /// Seleziona di nuovo un elemento dopo che ha cambiato posizione (per esempio quando viene fissato).
+    func select(id: Int64) {
+        guard let index = results.firstIndex(where: { $0.id == id }) else { return }
+        selection = index
+        scrollTarget = id
+        scrollTick += 1
+    }
+
+    /// Posizione di un elemento nella coda, a partire da 1.
+    func queueOrder(of id: Int64) -> Int? {
+        queue.firstIndex(of: id).map { $0 + 1 }
+    }
+
+    /// Aggiunge l'elemento in fondo alla coda, o lo toglie se c'era già.
+    func toggleQueue(_ id: Int64) {
+        if let index = queue.firstIndex(of: id) {
+            queue.remove(at: index)
+        } else {
+            queue.append(id)
+        }
+    }
+
+    /// La catena da incollare quando si sceglie l'ultima riga senza ⌘: la coda più quella riga in fondo.
+    func chain(endingWith id: Int64) -> [Int64] {
+        queue.contains(id) ? queue : queue + [id]
+    }
+
     func prepareForShow() {
-        appeared = false
+        queue = []
         if query.isEmpty { refresh() } else { query = "" }
         selection = 0
         lastMouse = NSEvent.mouseLocation

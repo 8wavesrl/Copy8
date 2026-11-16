@@ -35,6 +35,13 @@ final class Store {
         );
         CREATE INDEX IF NOT EXISTS clips_copied_at ON clips(copied_at);
         """)
+        if !hasColumn("pinned", in: "clips") {
+            exec("ALTER TABLE clips ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0;")
+        }
+        // Colonna di una funzione rimossa (scorciatoie personali): se è rimasta, si toglie.
+        if hasColumn("shortcut", in: "clips") {
+            exec("ALTER TABLE clips DROP COLUMN shortcut;")
+        }
     }
 
     deinit { sqlite3_close(db) }
@@ -42,7 +49,7 @@ final class Store {
     // MARK: Lettura
 
     func loadAll() -> [ClipItem] {
-        let sql = "SELECT id, kind, text, image, width, height, bytes, source_name, source_bundle, copied_at, hash FROM clips ORDER BY copied_at DESC"
+        let sql = "SELECT id, kind, text, image, width, height, bytes, source_name, source_bundle, copied_at, hash, pinned FROM clips ORDER BY copied_at DESC"
         guard let st = prepare(sql) else { return [] }
         defer { sqlite3_finalize(st) }
         var items: [ClipItem] = []
@@ -58,7 +65,8 @@ final class Store {
                 sourceName: text(st, 7),
                 sourceBundle: text(st, 8),
                 copiedAt: Date(timeIntervalSince1970: sqlite3_column_double(st, 9)),
-                hash: text(st, 10) ?? ""
+                hash: text(st, 10) ?? "",
+                pinned: sqlite3_column_int(st, 11) != 0
             ))
         }
         return items
@@ -74,15 +82,16 @@ final class Store {
 
     // MARK: Scrittura
 
-    /// Inserisce un elemento o, se il contenuto esiste già, lo riporta in cima. Restituisce l'id.
+    /// Inserisce un elemento o, se il contenuto esiste già, lo riporta in cima mantenendo la puntina.
+    /// Restituisce l'id e se l'elemento è fissato.
     func upsert(kind: ClipKind, text: String, rtf: Data?, html: Data?, image: String?, width: Int, height: Int,
-                bytes: Int, sourceName: String?, sourceBundle: String?, date: Date, hash: String) -> Int64? {
+                bytes: Int, sourceName: String?, sourceBundle: String?, date: Date, hash: String) -> (id: Int64, pinned: Bool)? {
         let sql = """
         INSERT INTO clips(kind, text, rtf, html, image, width, height, bytes, source_name, source_bundle, copied_at, hash)
         VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(hash) DO UPDATE SET kind = excluded.kind, rtf = excluded.rtf, html = excluded.html,
             source_name = excluded.source_name, source_bundle = excluded.source_bundle, copied_at = excluded.copied_at
-        RETURNING id
+        RETURNING id, pinned
         """
         guard let st = prepare(sql) else { return nil }
         defer { sqlite3_finalize(st) }
@@ -99,7 +108,15 @@ final class Store {
         sqlite3_bind_double(st, 11, date.timeIntervalSince1970)
         bind(st, 12, hash)
         guard sqlite3_step(st) == SQLITE_ROW else { return nil }
-        return sqlite3_column_int64(st, 0)
+        return (sqlite3_column_int64(st, 0), sqlite3_column_int(st, 1) != 0)
+    }
+
+    func setPinned(id: Int64, pinned: Bool) {
+        guard let st = prepare("UPDATE clips SET pinned = ? WHERE id = ?") else { return }
+        defer { sqlite3_finalize(st) }
+        sqlite3_bind_int(st, 1, pinned ? 1 : 0)
+        sqlite3_bind_int64(st, 2, id)
+        sqlite3_step(st)
     }
 
     func touch(id: Int64, date: Date) {
@@ -121,14 +138,14 @@ final class Store {
         return files
     }
 
-    /// Elimina gli elementi copiati prima di `date` (esclusa) e restituisce i file immagine da rimuovere.
+    /// Elimina gli elementi non fissati copiati prima di `date` e restituisce i file immagine da rimuovere.
     func deleteOlder(than date: Date) -> [String] {
-        deleteWhere("copied_at < ?", date)
+        deleteWhere("copied_at < ? AND pinned = 0", date)
     }
 
-    /// Elimina gli elementi copiati fino a `date` (inclusa).
+    /// Elimina gli elementi non fissati copiati fino a `date` (inclusa).
     func deleteUpTo(_ date: Date) -> [String] {
-        deleteWhere("copied_at <= ?", date)
+        deleteWhere("copied_at <= ? AND pinned = 0", date)
     }
 
     // MARK: Utilità
@@ -157,6 +174,15 @@ final class Store {
 
     private func exec(_ sql: String) {
         sqlite3_exec(db, sql, nil, nil, nil)
+    }
+
+    private func hasColumn(_ column: String, in table: String) -> Bool {
+        guard let st = prepare("PRAGMA table_info(\(table))") else { return false }
+        defer { sqlite3_finalize(st) }
+        while sqlite3_step(st) == SQLITE_ROW {
+            if text(st, 1) == column { return true }
+        }
+        return false
     }
 
     private func prepare(_ sql: String) -> OpaquePointer? {

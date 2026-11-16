@@ -136,17 +136,26 @@ struct SettingsView: View {
         return Settings.dayRange.contains(value)
     }
 
+    /// Su uno schermo basso la finestra si ferma all'altezza disponibile e il contenuto scorre.
+    private static var maxHeight: CGFloat {
+        max(360, (NSScreen.main?.visibleFrame.height ?? 800) - 40)
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            historyGroup
-            shortcutGroup
-            appearanceGroup
-            privacyGroup
+        ScrollView(.vertical) {
+            VStack(alignment: .leading, spacing: 18) {
+                historyGroup
+                shortcutGroup
+                appearanceGroup
+                privacyGroup
+            }
+            .padding(.top, 20)
+            .padding(.horizontal, 24)
+            .padding(.bottom, 24)
         }
-        .padding(.top, 20)
-        .padding(.horizontal, 24)
-        .padding(.bottom, 24)
+        .scrollBounceBehavior(.basedOnSize)
         .frame(width: 500)
+        .frame(maxHeight: Self.maxHeight)
         .foregroundStyle(Palette.text)
         .background(Palette.window)
         .onAppear {
@@ -196,9 +205,10 @@ struct SettingsView: View {
         } footer: {
             VStack(alignment: .leading, spacing: 6) {
                 Text(daysValid
-                     ? "La finestra mostra quello che hai copiato \(settings.days == 1 ? "nell’ultimo giorno" : "negli ultimi \(settings.days) giorni")."
+                     ? "La finestra mostra quello che hai copiato \(settings.days == 1 ? "nell’ultimo giorno" : "negli ultimi \(settings.days) giorni"). Gli elementi fissati con la puntina (⌘P) restano finché non li togli."
                      : "Inserisci un numero di giorni tra 1 e 365.")
                     .foregroundStyle(daysValid ? Palette.text2 : Palette.danger)
+                    .fixedSize(horizontal: false, vertical: true)
                 if settings.pasteDirectly && !trusted {
                     HStack(spacing: 4) {
                         Text("Per incollare serve il permesso Accessibilità.")
@@ -332,7 +342,7 @@ struct SettingsView: View {
             .frame(minHeight: 44)
         } footer: {
             if cleared {
-                Text("Diventa definitivo quando chiudi questa finestra.")
+                Text("Diventa definitivo quando chiudi questa finestra. Gli elementi fissati restano.")
                     .foregroundStyle(Palette.text2)
             }
         }

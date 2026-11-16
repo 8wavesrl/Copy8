@@ -19,9 +19,10 @@ final class History {
         thumbnails.countLimit = 24
     }
 
+    /// Gli elementi da mostrare: durante una cancellazione in sospeso restano solo i fissati e i nuovi.
     var visible: [ClipItem] {
         guard let cutoff = clearCutoff else { return items }
-        return Array(items.prefix { $0.copiedAt > cutoff })
+        return items.filter { $0.pinned || $0.copiedAt > cutoff }
     }
 
     // MARK: Nuovi elementi
@@ -60,24 +61,39 @@ final class History {
 
     private func record(_ capture: Capture, text: String, hash: String, imageFile: String?, width: Int, height: Int, bytes: Int) {
         let now = Date()
-        guard let id = store.upsert(kind: capture.kind, text: text, rtf: capture.rtf, html: capture.html, image: imageFile,
-                                    width: width, height: height, bytes: bytes, sourceName: capture.sourceName,
-                                    sourceBundle: capture.sourceBundle, date: now, hash: hash) else { return }
-        items.removeAll { $0.id == id || $0.hash == hash }
-        items.insert(ClipItem(id: id, kind: capture.kind, text: text, imageFile: imageFile, width: width, height: height,
+        guard let saved = store.upsert(kind: capture.kind, text: text, rtf: capture.rtf, html: capture.html, image: imageFile,
+                                       width: width, height: height, bytes: bytes, sourceName: capture.sourceName,
+                                       sourceBundle: capture.sourceBundle, date: now, hash: hash) else { return }
+        items.removeAll { $0.id == saved.id || $0.hash == hash }
+        items.insert(ClipItem(id: saved.id, kind: capture.kind, text: text, imageFile: imageFile, width: width, height: height,
                               byteCount: bytes, sourceName: capture.sourceName, sourceBundle: capture.sourceBundle,
-                              copiedAt: now, hash: hash), at: 0)
+                              copiedAt: now, hash: hash, pinned: saved.pinned), at: 0)
         onChange?()
     }
 
     // MARK: Modifiche
 
+    /// Lo stato attuale di un elemento: le righe a schermo possono averne una copia superata.
+    func current(_ item: ClipItem) -> ClipItem {
+        items.first { $0.id == item.id } ?? item
+    }
+
     /// Riporta in cima un elemento appena incollato o copiato dalla finestra.
     func touch(_ item: ClipItem) {
         let now = Date()
+        let latest = current(item)
         store.touch(id: item.id, date: now)
         items.removeAll { $0.id == item.id }
-        items.insert(item.with(copiedAt: now, sourceName: item.sourceName, sourceBundle: item.sourceBundle), at: 0)
+        items.insert(latest.with(copiedAt: now), at: 0)
+        onChange?()
+    }
+
+    /// Fissa o toglie la puntina: un elemento fissato non viene mai cancellato in automatico.
+    func setPinned(_ item: ClipItem, _ pinned: Bool) {
+        store.setPinned(id: item.id, pinned: pinned)
+        if let index = items.firstIndex(where: { $0.id == item.id }) {
+            items[index] = items[index].with(pinned: pinned)
+        }
         onChange?()
     }
 
@@ -87,12 +103,12 @@ final class History {
         onChange?()
     }
 
-    /// Elimina definitivamente quello che è più vecchio dei giorni impostati.
+    /// Elimina definitivamente quello che è più vecchio dei giorni impostati, tranne i fissati.
     func purge(days: Int) {
         let cutoff = Date().addingTimeInterval(-Double(days) * 86_400)
-        guard items.contains(where: { $0.copiedAt < cutoff }) else { return }
+        guard items.contains(where: { !$0.pinned && $0.copiedAt < cutoff }) else { return }
         removeImages(store.deleteOlder(than: cutoff))
-        items.removeAll { $0.copiedAt < cutoff }
+        items.removeAll { !$0.pinned && $0.copiedAt < cutoff }
         onChange?()
     }
 
@@ -106,11 +122,11 @@ final class History {
         onChange?()
     }
 
-    /// Rende definitiva la cancellazione (alla chiusura delle impostazioni o all'uscita).
+    /// Rende definitiva la cancellazione (alla chiusura delle impostazioni o all'uscita). I fissati restano.
     func commitClear() {
         guard let cutoff = clearCutoff else { return }
         removeImages(store.deleteUpTo(cutoff))
-        items.removeAll { $0.copiedAt <= cutoff }
+        items.removeAll { !$0.pinned && $0.copiedAt <= cutoff }
         clearCutoff = nil
         onChange?()
     }
