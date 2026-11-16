@@ -52,8 +52,12 @@ negli appunti e basta premere ⌘V.
 
 macOS lega i permessi alla firma dell'app. Con il certificato Developer ID i permessi restano validi a ogni
 ricompilazione. Se compili da solo senza quel certificato, crea una volta un certificato autofirmato con
-`scripts/make-signing-cert.sh`: `build-app.sh` lo usa in automatico, con lo stesso effetto ma solo sul tuo Mac. Senza certificato la firma è ad-hoc e cambia ogni volta: se l'incolla smette di funzionare,
-togli Copy8 dall'elenco Accessibilità con il tasto − e aggiungilo di nuovo.
+`scripts/make-signing-cert.sh`: `build-app.sh` lo usa in automatico, con lo stesso effetto ma solo sul tuo
+Mac. Senza certificato la firma è ad-hoc e cambia ogni volta.
+
+Quando la firma cambia, anche passando dalla versione del DMG a una tua build o viceversa, macOS non
+riconosce più il permesso e l'incolla smette di funzionare: togli Copy8 dall'elenco Accessibilità con il
+tasto − e aggiungilo di nuovo.
 
 ## Nella finestra
 
