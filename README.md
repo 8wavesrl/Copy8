@@ -8,19 +8,38 @@ che hai copiato negli ultimi giorni, dal più recente al più vecchio, con ricer
 Scarica `Copy8-<versione>.dmg` dalla pagina Releases, aprilo e trascina Copy8 in Applicazioni. Serve macOS 14
 o successivo.
 
-Copy8 non è firmata con un certificato Apple Developer né autenticata da Apple, quindi al primo avvio macOS
-la blocca. Vai in Impostazioni di Sistema › Privacy e sicurezza e scegli "Apri comunque" accanto a Copy8.
-In alternativa, dal Terminale: `xattr -dr com.apple.quarantine /Applications/Copy8.app`.
+Copy8 è firmata con il certificato Developer ID di 8 wave srl e autenticata da Apple, quindi si apre senza
+avvisi.
 
 ## Compilare
 
 Servono gli strumenti da riga di comando di Xcode (`xcode-select --install`).
 
 ```bash
-scripts/build-app.sh             # crea build/Copy8.app
-scripts/build-app.sh --dmg       # crea anche build/Copy8-<versione>.dmg
-scripts/build-app.sh --install   # la copia anche in /Applications
+scripts/build-app.sh              # crea build/Copy8.app
+scripts/build-app.sh --dmg        # crea anche build/Copy8-<versione>.dmg
+scripts/build-app.sh --notarize   # crea il DMG e lo fa autenticare da Apple, per distribuirlo
+scripts/build-app.sh --install    # la copia anche in /Applications
 ```
+
+## Pubblicare una versione
+
+Per distribuire Copy8 servono il certificato "Developer ID Application" di 8 wave srl nel portachiavi, con la
+sua chiave privata, e l'autenticazione (notarization) di Apple: senza, macOS blocca l'app scaricata anche se
+è firmata. `build-app.sh` usa il certificato in automatico quando lo trova, con hardened runtime e timestamp.
+
+Una volta sola, salva nel portachiavi le credenziali per l'autenticazione. Serve un Apple ID del team
+8 wave srl e una password per app, da creare su [account.apple.com](https://account.apple.com) › Accesso e
+sicurezza › Password per le app:
+
+```bash
+xcrun notarytool store-credentials "Copy8" --apple-id <Apple ID> --team-id GCQB48ZS4W
+```
+
+Poi, per ogni versione: aggiorna `CFBundleShortVersionString` e `CFBundleVersion` in `Support/Info.plist` e
+lancia `scripts/build-app.sh --notarize`. Lo script firma app e DMG, invia il DMG ad Apple, aspetta l'esito
+(di solito pochi minuti), aggancia il ticket al DMG e controlla che Gatekeeper lo accetti. Se Apple rifiuta,
+stampa il log con il motivo. Il file da pubblicare è `build/Copy8-<versione>.dmg`.
 
 L'app vive nella barra dei menu e non compare nel Dock. Per riaprire le impostazioni: icona nella barra
 dei menu › Impostazioni…, oppure ⌘, con la finestra aperta.
@@ -31,9 +50,9 @@ Per incollare direttamente nell'app attiva Copy8 simula ⌘V, e macOS lo consent
 in Impostazioni di Sistema › Privacy e sicurezza › Accessibilità. Senza permesso l'elemento viene copiato
 negli appunti e basta premere ⌘V.
 
-macOS lega i permessi alla firma dell'app. Se compili da solo, crea una volta un certificato autofirmato con
-`scripts/make-signing-cert.sh`: `build-app.sh` lo usa in automatico e i permessi restano validi a ogni
-ricompilazione. Senza certificato la firma è ad-hoc e cambia ogni volta: se l'incolla smette di funzionare,
+macOS lega i permessi alla firma dell'app. Con il certificato Developer ID i permessi restano validi a ogni
+ricompilazione. Se compili da solo senza quel certificato, crea una volta un certificato autofirmato con
+`scripts/make-signing-cert.sh`: `build-app.sh` lo usa in automatico, con lo stesso effetto ma solo sul tuo Mac. Senza certificato la firma è ad-hoc e cambia ogni volta: se l'incolla smette di funzionare,
 togli Copy8 dall'elenco Accessibilità con il tasto − e aggiungilo di nuovo.
 
 ## Nella finestra
