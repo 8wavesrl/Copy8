@@ -67,6 +67,7 @@ tasto − e aggiungilo di nuovo.
 | ↑ ↓, Pagina su/giù | Scegli l'elemento |
 | ↩ | Incolla nell'app attiva |
 | ⌥↩ | Incolla come testo semplice |
+| ⇧ clic | Incolla la riga e lascia la finestra aperta, per incollare altre righe una dopo l'altra (serve il permesso Accessibilità: senza, la finestra si chiude come con il clic) |
 | 1 … 9 | A ricerca vuota, incolla l'elemento in quella posizione (il numero è sulla riga); il 9 apre il tutorial finché la sua riga c'è |
 | ⌘ clic, ⌘1 … ⌘9, ⌘↩ | Mette la riga in coda, per incollare più elementi insieme (vedi sotto) |
 | ⌘C | Copia senza incollare (se nel campo di ricerca non c'è testo selezionato) |

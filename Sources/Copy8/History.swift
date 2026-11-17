@@ -80,8 +80,9 @@ final class History {
 
     /// Riporta in cima un elemento appena incollato o copiato dalla finestra.
     func touch(_ item: ClipItem) {
+        // Un elemento eliminato nel frattempo non deve tornare in elenco.
+        guard let latest = items.first(where: { $0.id == item.id }) else { return }
         let now = Date()
-        let latest = current(item)
         store.touch(id: item.id, date: now)
         items.removeAll { $0.id == item.id }
         items.insert(latest.with(copiedAt: now), at: 0)

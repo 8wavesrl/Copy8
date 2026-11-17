@@ -8,7 +8,8 @@ protocol PanelActions: AnyObject {
     func delete(_ item: ClipItem)
     func togglePin(_ item: ClipItem)
     /// Una riga è stata scelta: con `chaining` (⌘ premuto) entra nella coda, altrimenti si incolla.
-    func choose(_ item: ClipItem, chaining: Bool)
+    /// Con `keepOpen` (⇧ premuto) la finestra resta aperta dopo l'incolla.
+    func choose(_ item: ClipItem, chaining: Bool, keepOpen: Bool)
     func toggleQueue(_ item: ClipItem)
     func openSettings()
     func openTutorial()

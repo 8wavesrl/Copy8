@@ -24,6 +24,11 @@ final class PanelController: NSObject, NSWindowDelegate, PanelActions {
     private weak var searchField: NSTextField?
     private var keyMonitor: Any?
     private var askedForTrust = false
+    /// Vero mentre la finestra si toglie di mezzo per un incolla con ⇧ clic: non va chiusa.
+    private var steppingAside = false
+    /// Elementi incollati con ⇧ clic: tornano in cima alla cronologia solo alla chiusura,
+    /// così l'elenco non si riordina mentre si incolla una riga dopo l'altra.
+    private var pendingTouches: [ClipItem] = []
 
     init(settings: Settings, history: History, watcher: ClipboardWatcher, toast: ToastController) {
         self.settings = settings
@@ -119,6 +124,8 @@ final class PanelController: NSObject, NSWindowDelegate, PanelActions {
         guard isShown else { return }
         isShown = false
         if !model.queue.isEmpty { model.queue = [] }
+        for item in pendingTouches { history.touch(item) }
+        pendingTouches = []
         guard animated else {
             panel.orderOut(nil)
             panel.alphaValue = 1
@@ -180,27 +187,20 @@ final class PanelController: NSObject, NSWindowDelegate, PanelActions {
     }
 
     func windowDidResignKey(_ notification: Notification) {
-        hide()
+        if !steppingAside { hide() }
     }
 
     // MARK: Azioni
 
     func paste(_ item: ClipItem, plain: Bool) {
-        let screen = panel.screen
-        watcher.ignoredChangeCount = Paster.write(item, plain: plain, history: history)
-        history.touch(item)
-        hide(animated: false)
-        deliver(pasted: plain ? "Incollato come testo semplice" : "Incollato nell’app attiva",
-                copied: "Copiato: premi ⌘V per incollare", on: screen)
+        paste([item], plain: plain, keepOpen: false)
     }
 
-    func choose(_ item: ClipItem, chaining: Bool) {
+    func choose(_ item: ClipItem, chaining: Bool, keepOpen: Bool) {
         if chaining {
             toggleQueue(item)
-        } else if model.queue.isEmpty {
-            paste(item, plain: false)
         } else {
-            pasteChain(model.chain(endingWith: item.id))
+            pasteChain(model.chain(endingWith: item.id), keepOpen: keepOpen)
         }
     }
 
@@ -209,19 +209,55 @@ final class PanelController: NSObject, NSWindowDelegate, PanelActions {
     }
 
     /// Incolla insieme più elementi, nell'ordine in cui sono stati scelti.
-    private func pasteChain(_ ids: [Int64]) {
+    private func pasteChain(_ ids: [Int64], keepOpen: Bool) {
         let available = history.visible
         let items = ids.compactMap { id in available.first { $0.id == id } }
-        guard items.count > 1 else {
-            if let only = items.first { paste(only, plain: false) } else { model.queue = [] }
+        if items.isEmpty {
+            model.queue = []
+        } else {
+            paste(items, plain: false, keepOpen: keepOpen)
+        }
+    }
+
+    /// Mette gli elementi negli appunti e li incolla nell'app attiva. Con `keepOpen` la finestra resta aperta
+    /// per incollarne altri, ma solo se Copy8 può incollare da sé: se serve il tuo ⌘V, si chiude come sempre.
+    private func paste(_ items: [ClipItem], plain: Bool, keepOpen: Bool) {
+        guard let first = items.first else { return }
+        let screen = panel.screen
+        watcher.ignoredChangeCount = items.count == 1
+            ? Paster.write(first, plain: plain, history: history)
+            : Paster.write(items, history: history)
+        let pasted = items.count > 1 ? "Incollati \(items.count) elementi in ordine"
+            : plain ? "Incollato come testo semplice" : "Incollato nell’app attiva"
+        if keepOpen, isShown, settings.pasteDirectly, Paster.isTrusted {
+            model.queue = []
+            pendingTouches += items
+            pasteBehindPanel()
+            toast.show(pasted, on: screen)
             return
         }
-        let screen = panel.screen
-        watcher.ignoredChangeCount = Paster.write(items, history: history)
         hide(animated: false)
         for item in items { history.touch(item) }
-        deliver(pasted: "Incollati \(items.count) elementi in ordine",
-                copied: "Copiati \(items.count) elementi: premi ⌘V per incollare", on: screen)
+        deliver(pasted: pasted,
+                copied: items.count > 1 ? "Copiati \(items.count) elementi: premi ⌘V per incollare"
+                                        : "Copiato: premi ⌘V per incollare",
+                on: screen)
+    }
+
+    /// ⌘V arriva alla finestra che ha la tastiera, quindi per incollare nell'app sotto la finestra
+    /// si toglie di mezzo per un attimo e poi torna com'era: stessa ricerca, stessa selezione.
+    private func pasteBehindPanel() {
+        steppingAside = true
+        panel.orderOut(nil)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { Paster.sendPaste() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.steppingAside = false
+                // Se nel frattempo è stata chiusa (per esempio con la scorciatoia) resta chiusa.
+                if self.isShown { self.panel.makeKeyAndOrderFront(nil) }
+            }
+        }
     }
 
     /// Dopo aver scritto negli appunti: incolla nell'app attiva se può, altrimenti avvisa che è solo copiato.
@@ -290,7 +326,7 @@ final class PanelController: NSObject, NSWindowDelegate, PanelActions {
                 // ⌘↩ mette in coda la riga selezionata, come ⌘ clic.
                 if let item = model.selectedItem { toggleQueue(item) }
             } else if !model.queue.isEmpty {
-                pasteChain(model.queue)
+                pasteChain(model.queue, keepOpen: false)
             } else if let item = model.selectedItem {
                 paste(item, plain: mods.contains(.option))
             }
@@ -350,7 +386,7 @@ final class PanelController: NSObject, NSWindowDelegate, PanelActions {
         guard mods.isEmpty, !event.isARepeat, model.query.isEmpty,
               let digit = Int(event.charactersIgnoringModifiers ?? ""), (1...9).contains(digit) else { return false }
         if digit <= model.results.count {
-            choose(model.results[digit - 1], chaining: false)
+            choose(model.results[digit - 1], chaining: false, keepOpen: false)
             return true
         }
         if digit == 9, model.showsTutorial {

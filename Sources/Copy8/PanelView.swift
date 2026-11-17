@@ -138,8 +138,10 @@ struct PanelView: View {
                     .onHover { inside in if inside { model.hover(row.index) } }
                     .onTapGesture {
                         // Con ⌘ la riga entra nella coda; senza, si incolla (la coda più questa riga).
+                        // Con ⇧ la finestra resta aperta, per incollare altre righe una dopo l'altra.
                         let flags = NSApp.currentEvent?.modifierFlags ?? NSEvent.modifierFlags
-                        model.actions?.choose(row.item, chaining: flags.contains(.command))
+                        model.actions?.choose(row.item, chaining: flags.contains(.command),
+                                              keepOpen: flags.contains(.shift))
                     }
                     .contextMenu { rowMenu(row.item) }
                 }
