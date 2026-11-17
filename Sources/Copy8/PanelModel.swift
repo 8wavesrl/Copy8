@@ -11,6 +11,7 @@ protocol PanelActions: AnyObject {
     func choose(_ item: ClipItem, chaining: Bool)
     func toggleQueue(_ item: ClipItem)
     func openSettings()
+    func openTutorial()
     func focusSearch()
 }
 
@@ -81,11 +82,18 @@ final class PanelModel {
         results.indices.contains(selection) ? results[selection] : nil
     }
 
+    /// La riga del tutorial occupa il posto della nona, quindi c'è solo a ricerca vuota.
+    var showsTutorial: Bool {
+        settings.showsTutorialRow && query.isEmpty
+    }
+
     func refresh() {
         let cutoff = Date().addingTimeInterval(-Double(settings.days) * 86_400)
         // I fissati restano sempre, anche oltre i giorni impostati.
         let pool = history.visible.filter { $0.pinned || $0.copiedAt >= cutoff }
         poolCount = pool.count
+        // La nona copia prende il posto della riga del tutorial, per sempre.
+        if pool.count >= 9, settings.showsTutorialRow { settings.showsTutorialRow = false }
         terms = Search.terms(query)
         let needles = terms.map { Array($0.utf8) }
         let matching = needles.isEmpty ? pool : pool.filter { item in needles.allSatisfy(item.matches) }

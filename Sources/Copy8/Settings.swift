@@ -15,9 +15,24 @@ enum ThemePreference: String, CaseIterable, Identifiable {
     }
 }
 
+/// Cosa mostra Copy8 nella barra dei menu.
+enum MenuBarMode: String, CaseIterable, Identifiable {
+    case icon, iconAndText, hidden
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .icon: return "Icona"
+        case .iconAndText: return "Icona e ultima copia"
+        case .hidden: return "Nascosta"
+        }
+    }
+}
+
 @Observable
 final class Settings {
-    enum Change { case days, theme, preview, hotKey, other }
+    enum Change { case days, theme, preview, hotKey, menuBar, other }
 
     static let shared = Settings()
     static let dayRange = 1...365
@@ -46,11 +61,20 @@ final class Settings {
     var ignoreConfidential: Bool {
         didSet { defaults.set(ignoreConfidential, forKey: Keys.ignoreConfidential); onChange?(.other) }
     }
+    var menuBar: MenuBarMode {
+        didSet { defaults.set(menuBar.rawValue, forKey: Keys.menuBar); onChange?(.menuBar) }
+    }
     var hotKey: KeyCombo {
         didSet {
             if let data = try? JSONEncoder().encode(hotKey) { defaults.set(data, forKey: Keys.hotKey) }
             onChange?(.hotKey)
         }
+    }
+
+    /// Riga "Scopri come si usa Copy8" al posto della nona: sparisce per sempre quando la cronologia
+    /// arriva a nove elementi, e da lì il tutorial si apre solo dalle impostazioni.
+    var showsTutorialRow: Bool {
+        didSet { defaults.set(showsTutorialRow, forKey: Keys.showsTutorialRow) }
     }
 
     /// Non salvato: vero quando il sistema rifiuta la scorciatoia scelta.
@@ -65,6 +89,8 @@ final class Settings {
         static let glassIntensity = "glassIntensity"
         static let ignoreConfidential = "ignoreConfidential"
         static let hotKey = "hotKey"
+        static let showsTutorialRow = "showsTutorialRow"
+        static let menuBar = "menuBar"
     }
 
     private init() {
@@ -76,6 +102,8 @@ final class Settings {
             Keys.glass: true,
             Keys.glassIntensity: 60.0,
             Keys.ignoreConfidential: true,
+            Keys.showsTutorialRow: true,
+            Keys.menuBar: MenuBarMode.icon.rawValue,
         ])
         days = min(max(defaults.integer(forKey: Keys.days), Settings.dayRange.lowerBound), Settings.dayRange.upperBound)
         pasteDirectly = defaults.bool(forKey: Keys.pasteDirectly)
@@ -84,6 +112,8 @@ final class Settings {
         glass = defaults.bool(forKey: Keys.glass)
         glassIntensity = min(max(defaults.double(forKey: Keys.glassIntensity), 1), 100)
         ignoreConfidential = defaults.bool(forKey: Keys.ignoreConfidential)
+        showsTutorialRow = defaults.bool(forKey: Keys.showsTutorialRow)
+        menuBar = MenuBarMode(rawValue: defaults.string(forKey: Keys.menuBar) ?? "") ?? .icon
         if let data = defaults.data(forKey: Keys.hotKey), let combo = try? JSONDecoder().decode(KeyCombo.self, from: data) {
             hotKey = combo
         } else {

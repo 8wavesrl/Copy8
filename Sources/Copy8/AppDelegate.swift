@@ -9,8 +9,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var panel: PanelController!
     private var toast: ToastController!
     private var settingsWindow: SettingsWindowController!
-    private var statusItem: NSStatusItem!
-    private var openItem: NSMenuItem!
+    private var tutorial: TutorialWindowController!
+    private var statusBar: StatusBarController!
     private var purgeTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -33,14 +33,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         toast = ToastController()
         watcher = ClipboardWatcher()
         watcher.ignoreConfidential = { [unowned self] in settings.ignoreConfidential }
-        watcher.onCapture = { [unowned self] capture in history.add(capture) }
+        watcher.onCapture = { [unowned self] capture in
+            history.add(capture)
+            statusBar?.flash()
+        }
         watcher.start()
 
         panel = PanelController(settings: settings, history: history, watcher: watcher, toast: toast)
+        tutorial = TutorialWindowController(settings: settings)
         panel.onOpenSettings = { [unowned self] in openSettings() }
-        history.onChange = { [unowned self] in panel.historyChanged() }
+        panel.onOpenTutorial = { [unowned self] in tutorial.show() }
+        history.onChange = { [unowned self] in
+            panel.historyChanged()
+            statusBar?.updateTitle()
+        }
 
-        settingsWindow = SettingsWindowController(settings: settings, history: history, recorder: recorder)
+        settingsWindow = SettingsWindowController(settings: settings, history: history, recorder: recorder) { [unowned self] in
+            tutorial.show()
+        }
         recorder.onRecord = { [unowned self] combo in settings.hotKey = combo }
         recorder.onRecordingChange = { [unowned self] recording in
             if recording { HotKeyCenter.shared.unregister() } else { registerHotKey() }
@@ -53,7 +63,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settings.onChange = { [unowned self] change in settingsChanged(change) }
 
         buildMainMenu()
-        buildStatusItem()
+        statusBar = StatusBarController(settings: settings, history: history)
+        statusBar.onOpenPanel = { [unowned self] in panel.show() }
+        statusBar.onOpenSettings = { [unowned self] in openSettings() }
+        statusBar.onPaste = { [unowned self] item in panel.paste(item, plain: false) }
+        statusBar.update()
 
         let timer = Timer(timeInterval: 3600, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
@@ -73,6 +87,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if CommandLine.arguments.contains("--show") { panel.show() }
         if CommandLine.arguments.contains("--settings") { openSettings() }
+        if CommandLine.arguments.contains("--tutorial") { tutorial.show() }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -91,6 +106,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .theme: applyTheme()
         case .preview: panel.applySize()
         case .hotKey: registerHotKey()
+        case .menuBar: statusBar.update()
         case .days: panel.historyChanged()
         case .other: break
         }
@@ -106,11 +122,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func registerHotKey() {
         settings.hotKeyUnavailable = !HotKeyCenter.shared.register(settings.hotKey)
-        updateOpenItemShortcut()
-    }
-
-    @objc private func openPanel() {
-        panel.show()
     }
 
     @objc private func openSettings() {
@@ -118,34 +129,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     // MARK: Menu
-
-    private func buildStatusItem() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        statusItem.button?.image = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: "Copy8")
-        let menu = NSMenu()
-        openItem = NSMenuItem(title: "Apri cronologia", action: #selector(openPanel), keyEquivalent: "")
-        openItem.target = self
-        menu.addItem(openItem)
-        let settingsItem = NSMenuItem(title: "Impostazioni…", action: #selector(openSettings), keyEquivalent: ",")
-        settingsItem.target = self
-        menu.addItem(settingsItem)
-        menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Esci da Copy8", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
-        statusItem.menu = menu
-        updateOpenItemShortcut()
-    }
-
-    /// Mostra la scorciatoia accanto alla voce "Apri cronologia" quando è un tasto con un carattere.
-    private func updateOpenItemShortcut() {
-        guard let openItem else { return }
-        let key = settings.hotKey.key
-        if key.count == 1 {
-            openItem.keyEquivalent = key.lowercased()
-            openItem.keyEquivalentModifierMask = settings.hotKey.flags
-        } else {
-            openItem.keyEquivalent = ""
-        }
-    }
 
     /// Serve per ⌘C, ⌘V, ⌘A nei campi di testo della finestra delle impostazioni.
     private func buildMainMenu() {

@@ -43,6 +43,13 @@ enum Tokens {
     static let glassInnerEdge = NSColor.adaptive(light: NSColor(hex: 0xFFFFFF, alpha: 0.55), dark: NSColor(hex: 0xFFFFFF, alpha: 0.12))
     /// Alone dietro il testo quando il vetro è trasparente: opposto al colore del testo.
     static let halo = NSColor.adaptive(light: NSColor(hex: 0xFFFFFF), dark: NSColor(hex: 0x000000))
+    /// Verde chiaro della riga che apre il tutorial.
+    static let tutorial = NSColor.adaptive(light: NSColor(hex: 0x2FA14C), dark: NSColor(hex: 0x2A9446))
+    static let tutorialFill = NSColor.adaptive(light: NSColor(hex: 0x34C759, alpha: 0.14), dark: NSColor(hex: 0x30D158, alpha: 0.15))
+    static let tutorialFillHover = NSColor.adaptive(light: NSColor(hex: 0x34C759, alpha: 0.24), dark: NSColor(hex: 0x30D158, alpha: 0.25))
+    /// Sfondo delle animazioni del tutorial: una scrivania stilizzata dietro le finestre finte.
+    static let stageTop = NSColor.adaptive(light: NSColor(hex: 0xD9E3F0), dark: NSColor(hex: 0x262A31))
+    static let stageBottom = NSColor.adaptive(light: NSColor(hex: 0xECEFF4), dark: NSColor(hex: 0x1A1C20))
 }
 
 enum Palette {
@@ -68,6 +75,11 @@ enum Palette {
     static let modalInnerEdge = Color(nsColor: Tokens.modalInnerEdge)
     static let glassInnerEdge = Color(nsColor: Tokens.glassInnerEdge)
     static let halo = Color(nsColor: Tokens.halo)
+    static let tutorial = Color(nsColor: Tokens.tutorial)
+    static let tutorialFill = Color(nsColor: Tokens.tutorialFill)
+    static let tutorialFillHover = Color(nsColor: Tokens.tutorialFillHover)
+    static let stageTop = Color(nsColor: Tokens.stageTop)
+    static let stageBottom = Color(nsColor: Tokens.stageBottom)
 }
 
 /// Effetto vetro: un solo valore (1–100) va dalla superficie quasi piena al vetro lucido.

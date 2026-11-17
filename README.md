@@ -1,6 +1,6 @@
 # Copy8
 
-Cronologia degli appunti per macOS. Una scorciatoia (di default ⇧⌘V) apre una finestra con tutto quello
+Cronologia degli appunti per macOS. Una scorciatoia (di default ⌥V) apre una finestra con tutto quello
 che hai copiato negli ultimi giorni, dal più recente al più vecchio, con ricerca full text.
 
 ## Installare
@@ -41,8 +41,9 @@ lancia `scripts/build-app.sh --notarize`. Lo script firma app e DMG, invia il DM
 (di solito pochi minuti), aggancia il ticket al DMG e controlla che Gatekeeper lo accetti. Se Apple rifiuta,
 stampa il log con il motivo. Il file da pubblicare è `build/Copy8-<versione>.dmg`.
 
-L'app vive nella barra dei menu e non compare nel Dock. Per riaprire le impostazioni: icona nella barra
-dei menu › Impostazioni…, oppure ⌘, con la finestra aperta.
+L'app vive nella barra dei menu e non compare nel Dock. La sua icona è una cartellina con un 8, che si riempie
+per un attimo quando Copy8 registra una copia. Il menu dell'icona mostra le ultime 5 copie, che si incollano
+con un clic, e porta alle impostazioni; ci si arriva anche con ⌘, a finestra aperta.
 
 ## Permesso Accessibilità
 
@@ -66,7 +67,7 @@ tasto − e aggiungilo di nuovo.
 | ↑ ↓, Pagina su/giù | Scegli l'elemento |
 | ↩ | Incolla nell'app attiva |
 | ⌥↩ | Incolla come testo semplice |
-| 1 … 9 | A ricerca vuota, incolla l'elemento in quella posizione (il numero è sulla riga) |
+| 1 … 9 | A ricerca vuota, incolla l'elemento in quella posizione (il numero è sulla riga); il 9 apre il tutorial finché la sua riga c'è |
 | ⌘ clic, ⌘1 … ⌘9, ⌘↩ | Mette la riga in coda, per incollare più elementi insieme (vedi sotto) |
 | ⌘C | Copia senza incollare (se nel campo di ricerca non c'è testo selezionato) |
 | ⌘P | Fissa l'elemento con la puntina, o lo toglie dai fissati |
@@ -98,6 +99,15 @@ destro) sta nella sezione "Fissati" in cima all'elenco e non viene mai cancellat
 giorni impostati né con "Cancella cronologia". Si elimina solo a mano. Nell'anteprima la riga
 "Conservazione" dice fino a quando resta un elemento non fissato.
 
+### Tutorial
+
+Finché la cronologia ha meno di nove elementi, al posto della nona riga c'è una riga verde chiaro,
+"Scopri come si usa Copy8": si apre con un clic o con il tasto 9. Alla nona copia la riga sparisce per sempre
+e il tutorial resta in Impostazioni › Guida. Sono quattro animazioni (incollare, cercare, più elementi
+insieme, puntina) fatte con gli stessi componenti della finestra, quindi seguono tema e grafica dell'app.
+Con "Riduci movimento" attivo nelle impostazioni di sistema mostrano un'immagine ferma. ← e → cambiano
+pagina, esc chiude.
+
 ## Impostazioni
 
 - **Conserva gli elementi per**: numero di giorni (1–365, default 7). Quello che è più vecchio viene eliminato,
@@ -106,6 +116,9 @@ giorni impostati né con "Cancella cronologia". Si elimina solo a mano. Nell'ant
 - **Apri la cronologia**: clicca e premi la nuova combinazione (serve ⌘, ⌃ o ⌥).
 - **Avvia al login**.
 - **Tema**: Sistema, Chiaro, Scuro.
+- **Nella barra dei menu**: Icona (predefinita), Icona e ultima copia (i primi 10 caratteri accanto
+  all'icona, visibili anche quando condividi lo schermo), Nascosta. Senza icona le impostazioni si aprono dalla
+  finestra con ⌘, oppure riaprendo Copy8 da Applicazioni.
 - **Mostra anteprima**: pannello di destra con il contenuto completo e i dettagli.
 - **Effetto vetro** e **Intensità** (1–100), con anteprima dal vivo. A 1 la superficie è quasi piena, a 100
   la finestra è vetro lucido e molto trasparente. La sfocatura resta piena fino a circa 40 e a 100 ne resta
@@ -115,6 +128,7 @@ giorni impostati né con "Cancella cronologia". Si elimina solo a mano. Nell'ant
 - **Ignora password e contenuti riservati**: salta quello che i password manager marcano come riservato.
 - **Cancella cronologia…**: si può annullare finché la finestra delle impostazioni è aperta. Gli elementi
   fissati restano.
+- **Come si usa Copy8**: apre il tutorial.
 
 ## Dati
 
@@ -133,9 +147,12 @@ Copy8 ignora un testo più lungo di un milione di caratteri e un'immagine più g
 | `PanelController.swift`, `PanelModel.swift`, `PanelView.swift` | La finestra: tastiera, ricerca, elenco, anteprima |
 | `Paster.swift` | Scrive negli appunti e simula ⌘V |
 | `HotKey.swift` | Scorciatoia globale (Carbon, non richiede permessi) |
+| `StatusBar.swift` | Icona e menu nella barra dei menu |
+| `Credits.swift` | "Sviluppata da 8 wave": logo nelle impostazioni, scritta nella finestra e nel menu |
 | `SettingsView.swift`, `Settings.swift` | Impostazioni e loro salvataggio |
 | `Theme.swift` | Token del design system, chiaro e scuro |
 | `Toast.swift` | Conferma dopo l'incolla |
+| `Tutorial.swift` | Finestra del tutorial e le sue animazioni |
 
 La finestra viene creata e disegnata una volta all'avvio e poi solo mostrata, così si apre al frame
 successivo alla scorciatoia.

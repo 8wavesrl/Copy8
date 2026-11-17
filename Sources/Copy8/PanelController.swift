@@ -13,6 +13,7 @@ final class ClipPanel: NSPanel {
 final class PanelController: NSObject, NSWindowDelegate, PanelActions {
     let model: PanelModel
     var onOpenSettings: (() -> Void)?
+    var onOpenTutorial: (() -> Void)?
     private(set) var isShown = false
 
     private let panel: ClipPanel
@@ -264,6 +265,11 @@ final class PanelController: NSObject, NSWindowDelegate, PanelActions {
         onOpenSettings?()
     }
 
+    func openTutorial() {
+        hide(animated: false)
+        onOpenTutorial?()
+    }
+
     func focusSearch() {
         if let searchField { panel.makeFirstResponder(searchField) }
     }
@@ -337,14 +343,21 @@ final class PanelController: NSObject, NSWindowDelegate, PanelActions {
     }
 
     /// A ricerca vuota un numero da 1 a 9 sceglie la riga corrispondente, come un clic senza ⌘:
-    /// la incolla, insieme alla coda se ce n'è una. Appena si scrive qualcosa i numeri tornano testo.
+    /// la incolla, insieme alla coda se ce n'è una. Il 9 apre il tutorial finché la sua riga è al nono posto.
+    /// Appena si scrive qualcosa i numeri tornano testo.
     private func choosesRow(_ event: NSEvent) -> Bool {
         let mods = event.modifierFlags.intersection([.command, .option, .control, .shift])
         guard mods.isEmpty, !event.isARepeat, model.query.isEmpty,
-              let digit = Int(event.charactersIgnoringModifiers ?? ""),
-              (1...9).contains(digit), digit <= model.results.count else { return false }
-        choose(model.results[digit - 1], chaining: false)
-        return true
+              let digit = Int(event.charactersIgnoringModifiers ?? ""), (1...9).contains(digit) else { return false }
+        if digit <= model.results.count {
+            choose(model.results[digit - 1], chaining: false)
+            return true
+        }
+        if digit == 9, model.showsTutorial {
+            openTutorial()
+            return true
+        }
+        return false
     }
 
     private func send(_ action: Selector) -> Bool {

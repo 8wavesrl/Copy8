@@ -29,11 +29,14 @@ for arg in "$@"; do
 done
 
 identities=$(security find-identity -v -p codesigning 2>/dev/null || true)
+# Il certificato autofirmato non è "valido" per macOS (CSSMERR_TP_NOT_TRUSTED) e con -v non compare,
+# ma codesign lo usa lo stesso: va cercato nell'elenco completo.
+all_identities=$(security find-identity -p codesigning 2>/dev/null || true)
 if [ -n "${COPY8_SIGN_ID:-}" ]; then
     SIGN_ID="$COPY8_SIGN_ID"
 elif DEV_ID=$(grep -o '"Developer ID Application: [^"]*"' <<<"$identities" | head -n 1 | tr -d '"') && [ -n "$DEV_ID" ]; then
     SIGN_ID="$DEV_ID"
-elif grep -q '"Copy8 Local Signing"' <<<"$identities"; then
+elif grep -q '"Copy8 Local Signing"' <<<"$all_identities"; then
     SIGN_ID="Copy8 Local Signing"
 else
     SIGN_ID="-"
@@ -71,6 +74,7 @@ if [ ! -f build/AppIcon.icns ]; then
     iconutil -c icns build/AppIcon.iconset -o build/AppIcon.icns
 fi
 cp build/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+cp Support/EightWaveLogo.png "$APP/Contents/Resources/EightWaveLogo.png"
 
 # macOS lega i permessi (Accessibilità) alla firma: con un certificato stabile restano validi
 # tra una compilazione e l'altra. Developer ID richiede anche hardened runtime e timestamp,

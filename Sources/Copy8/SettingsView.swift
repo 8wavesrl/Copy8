@@ -12,16 +12,19 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     private let settings: Settings
     private let history: History
     private let recorder: ShortcutRecorder
+    private let openTutorial: () -> Void
 
-    init(settings: Settings, history: History, recorder: ShortcutRecorder) {
+    init(settings: Settings, history: History, recorder: ShortcutRecorder, openTutorial: @escaping () -> Void) {
         self.settings = settings
         self.history = history
         self.recorder = recorder
+        self.openTutorial = openTutorial
     }
 
     func show() {
         if window == nil {
-            let host = NSHostingController(rootView: SettingsView(settings: settings, history: history, recorder: recorder))
+            let host = NSHostingController(rootView: SettingsView(settings: settings, history: history, recorder: recorder,
+                                                                  openTutorial: openTutorial))
             host.sizingOptions = [.preferredContentSize]
             let window = NSWindow(contentViewController: host)
             window.title = "Impostazioni"
@@ -32,28 +35,37 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             window.delegate = self
             let size = host.view.fittingSize
             if size.width > 0, size.height > 0 { window.setContentSize(size) }
-            place(window)
+            window.placeInVisibleFrame()
             self.window = window
         }
-        NSApp.activate()
-        window?.makeKeyAndOrderFront(nil)
-    }
-
-    /// Centra la finestra nell'area visibile, sotto la barra dei menu e sopra il Dock.
-    private func place(_ window: NSWindow) {
-        guard let visible = NSScreen.main?.visibleFrame else {
-            window.center()
-            return
-        }
-        var frame = window.frame
-        frame.origin.x = (visible.midX - frame.width / 2).rounded()
-        frame.origin.y = max(visible.minY, (visible.minY + (visible.height - frame.height) / 2).rounded())
-        window.setFrame(frame, display: false)
+        window?.bringToFront()
     }
 
     func windowWillClose(_ notification: Notification) {
         recorder.stop()
         history.commitClear()
+    }
+}
+
+extension NSWindow {
+    /// Centra la finestra nell'area visibile, sotto la barra dei menu e sopra il Dock.
+    func placeInVisibleFrame() {
+        guard let visible = NSScreen.main?.visibleFrame else {
+            center()
+            return
+        }
+        var frame = frame
+        frame.origin.x = (visible.midX - frame.width / 2).rounded()
+        frame.origin.y = max(visible.minY, (visible.minY + (visible.height - frame.height) / 2).rounded())
+        setFrame(frame, display: false)
+    }
+
+    /// Porta la finestra davanti a tutte. Copy8 non ha icona nel Dock e macOS può rifiutare di renderla
+    /// l'app attiva: in quel caso la finestra resterebbe dietro quella dell'app in primo piano.
+    func bringToFront() {
+        NSApp.activate()
+        makeKeyAndOrderFront(nil)
+        orderFrontRegardless()
     }
 }
 
@@ -123,6 +135,7 @@ struct SettingsView: View {
     @Bindable var settings: Settings
     let history: History
     let recorder: ShortcutRecorder
+    let openTutorial: () -> Void
 
     @State private var daysText = ""
     @State private var trusted = Paster.isTrusted
@@ -148,6 +161,8 @@ struct SettingsView: View {
                 shortcutGroup
                 appearanceGroup
                 privacyGroup
+                guideGroup
+                CreditsView()
             }
             .padding(.top, 20)
             .padding(.horizontal, 24)
@@ -282,6 +297,14 @@ struct SettingsView: View {
                 .labelsHidden()
                 .fixedSize()
             }
+            SettingsRow(label: "Nella barra dei menu") {
+                Picker("Nella barra dei menu", selection: $settings.menuBar) {
+                    ForEach(MenuBarMode.allCases) { Text($0.label).tag($0) }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .fixedSize()
+            }
             SettingsRow(label: "Mostra anteprima") {
                 Toggle("", isOn: $settings.showPreview).labelsHidden().toggleStyle(.switch)
             }
@@ -306,7 +329,18 @@ struct SettingsView: View {
                 GlassSample(intensity: settings.glassIntensity)
             }
         } footer: {
-            EmptyView()
+            switch settings.menuBar {
+            case .icon:
+                EmptyView()
+            case .iconAndText:
+                Text("Accanto all’icona compaiono i primi caratteri dell’ultima copia: si vedono anche quando condividi lo schermo.")
+                    .foregroundStyle(Palette.text2)
+                    .fixedSize(horizontal: false, vertical: true)
+            case .hidden:
+                Text("Senza icona, le impostazioni si aprono con \(settings.hotKey.symbols.joined()) e poi ⌘, oppure riaprendo Copy8 da Applicazioni.")
+                    .foregroundStyle(Palette.text2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
@@ -347,9 +381,58 @@ struct SettingsView: View {
             }
         }
     }
+
+    // MARK: Guida
+
+    private var guideGroup: some View {
+        SettingsGroup(title: "Guida") {
+            SettingsRow(label: "Come si usa Copy8", divider: false) {
+                Button("Guarda il tutorial", action: openTutorial)
+            }
+        } footer: {
+            Text("Quattro brevi animazioni: incollare, cercare, incollare più elementi insieme, fissare con la puntina.")
+                .foregroundStyle(Palette.text2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
 }
 
 // MARK: - Componenti delle impostazioni
+
+/// In fondo alle impostazioni: il logo di 8 wave e la versione.
+struct CreditsView: View {
+    var body: some View {
+        VStack(spacing: 8) {
+            Text("Sviluppata da")
+                .font(.system(size: 11))
+                .foregroundStyle(Palette.text2)
+            if let logo = Credits.logo {
+                Image(nsImage: logo)
+                    .renderingMode(.template)
+                    .resizable()
+                    .interpolation(.high)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(height: 30)
+                    .foregroundStyle(Palette.text)
+                    // Centratura ottica: il logo è centrato al pixel, ma l'occhio legge il cerchio come un simbolo
+                    // a parte e centra la scritta, che sta tutta a destra. Uno spostamento di circa il 3,5% lo bilancia.
+                    .offset(x: -3)
+                    .accessibilityLabel("8 wave")
+            } else {
+                Text("8 wave").font(.system(size: 15, weight: .semibold))
+            }
+            if !Credits.version.isEmpty {
+                Text("Copy8 \(Credits.version)")
+                    .font(.system(size: 11))
+                    .monospacedDigit()
+                    .foregroundStyle(Palette.text2)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 10)
+        .accessibilityElement(children: .combine)
+    }
+}
 
 struct SettingsGroup<Content: View, Footer: View>: View {
     let title: String

@@ -7,9 +7,11 @@ struct KeyCombo: Codable, Equatable {
     var modifiers: UInt
     var key: String
 
+    /// ⌥V: si preme con una mano sola. Chi non l'ha mai cambiata la riceve anche aggiornando,
+    /// perché nelle preferenze viene salvata solo una combinazione scelta a mano.
     static let `default` = KeyCombo(
         keyCode: UInt32(kVK_ANSI_V),
-        modifiers: NSEvent.ModifierFlags([.command, .shift]).rawValue,
+        modifiers: NSEvent.ModifierFlags.option.rawValue,
         key: "V"
     )
 

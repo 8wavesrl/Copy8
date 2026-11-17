@@ -58,10 +58,22 @@ struct ToastView: View {
     let model: ToastModel
 
     var body: some View {
+        ToastPill(message: model.message)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.updatesFrequently)
+    }
+}
+
+/// La pillola della conferma, usata anche nelle animazioni del tutorial.
+struct ToastPill: View {
+    let message: String
+
+    var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "checkmark")
                 .font(.system(size: 12, weight: .bold))
-            Text(model.message)
+            Text(message)
                 .font(.system(size: 13))
         }
         .foregroundStyle(Color.white)
@@ -70,8 +82,5 @@ struct ToastView: View {
         .frame(height: 40)
         .background(Capsule().fill(Palette.hud))
         .shadow(color: .black.opacity(0.2), radius: 12, y: 8)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.updatesFrequently)
     }
 }

@@ -71,18 +71,6 @@ struct PanelView: View {
         settings.glass ? Glass.gloss(settings.glassIntensity) : 0
     }
 
-    /// Tasto per scegliere la riga in base alla posizione, solo per le prime nove: "3" a ricerca vuota
-    /// (il numero da solo incolla), "⌘3" mentre si cerca (i numeri sono testo, e ⌘ + numero mette in coda).
-    private func positionLabel(for index: Int) -> String? {
-        guard index < 9 else { return nil }
-        return model.query.isEmpty ? "\(index + 1)" : "⌘\(index + 1)"
-    }
-
-    private var queueSummary: String {
-        let count = model.queue.count
-        return "\(count) in coda · un clic senza ⌘ aggiunge l’ultimo e incolla tutto"
-    }
-
     private var queuePasteLabel: String {
         let verb = settings.pasteDirectly ? "Incolla" : "Copia"
         let count = model.queue.count
@@ -90,7 +78,7 @@ struct PanelView: View {
     }
 
     private var resultCount: String {
-        model.results.count == 1 ? "1 risultato" : "\(model.results.count) risultati"
+        PanelText.resultCount(model.results.count)
     }
 
     // MARK: Elenco
@@ -98,47 +86,70 @@ struct PanelView: View {
     @ViewBuilder
     private var list: some View {
         if model.results.isEmpty {
-            emptyState
+            VStack(spacing: 0) {
+                emptyState
+                if model.showsTutorial {
+                    tutorialRow.padding(.bottom, 8)
+                }
+            }
         } else {
             ScrollViewReader { proxy in
-                ScrollView(.vertical) {
-                    LazyVStack(alignment: .leading, spacing: 0) {
-                        Color.clear.frame(height: 4).id("top")
-                        ForEach(model.entries) { entry in
-                            switch entry {
-                            case .header(let section):
-                                SectionHeader(section: section, days: settings.days)
-                                    .padding(.horizontal, 20)
-                                    .padding(.top, section.isFirst ? 6 : 14)
-                                    .padding(.bottom, 4)
-                            case .row(let row):
-                                ClipRow(item: row.item, selected: row.index == model.selection, terms: model.terms,
-                                        position: positionLabel(for: row.index),
-                                        order: model.queueOrder(of: row.item.id)) {
-                                    model.actions?.togglePin(row.item)
-                                }
-                                .onHover { inside in if inside { model.hover(row.index) } }
-                                .onTapGesture {
-                                    // Con ⌘ la riga entra nella coda; senza, si incolla (la coda più questa riga).
-                                    let flags = NSApp.currentEvent?.modifierFlags ?? NSEvent.modifierFlags
-                                    model.actions?.choose(row.item, chaining: flags.contains(.command))
-                                }
-                                .contextMenu { rowMenu(row.item) }
+                GeometryReader { geometry in
+                    ScrollView(.vertical) {
+                        // Con pochi elementi la riga del tutorial resta in fondo, al posto della nona.
+                        VStack(spacing: 0) {
+                            rows
+                            if model.showsTutorial {
+                                Spacer(minLength: 0)
+                                tutorialRow.padding(.bottom, 8)
                             }
                         }
-                        Color.clear.frame(height: 8)
+                        .frame(minHeight: geometry.size.height, alignment: .top)
                     }
-                }
-                .scrollIndicators(.never)
-                .onChange(of: model.scrollTick) {
-                    if model.scrollTarget < 0 {
-                        proxy.scrollTo("top", anchor: .top)
-                    } else {
-                        proxy.scrollTo(PanelModel.rowID(model.scrollTarget))
+                    .scrollIndicators(.never)
+                    .onChange(of: model.scrollTick) {
+                        if model.scrollTarget < 0 {
+                            proxy.scrollTo("top", anchor: .top)
+                        } else {
+                            proxy.scrollTo(PanelModel.rowID(model.scrollTarget))
+                        }
                     }
                 }
             }
         }
+    }
+
+    private var rows: some View {
+        LazyVStack(alignment: .leading, spacing: 0) {
+            Color.clear.frame(height: 4).id("top")
+            ForEach(model.entries) { entry in
+                switch entry {
+                case .header(let section):
+                    SectionHeader(section: section, days: settings.days)
+                        .padding(.horizontal, 20)
+                        .padding(.top, section.isFirst ? 6 : 14)
+                        .padding(.bottom, 4)
+                case .row(let row):
+                    ClipRow(item: row.item, selected: row.index == model.selection, terms: model.terms,
+                            position: PanelText.position(row.index, searching: !model.query.isEmpty),
+                            order: model.queueOrder(of: row.item.id)) {
+                        model.actions?.togglePin(row.item)
+                    }
+                    .onHover { inside in if inside { model.hover(row.index) } }
+                    .onTapGesture {
+                        // Con ⌘ la riga entra nella coda; senza, si incolla (la coda più questa riga).
+                        let flags = NSApp.currentEvent?.modifierFlags ?? NSEvent.modifierFlags
+                        model.actions?.choose(row.item, chaining: flags.contains(.command))
+                    }
+                    .contextMenu { rowMenu(row.item) }
+                }
+            }
+            Color.clear.frame(height: model.showsTutorial ? 4 : 8)
+        }
+    }
+
+    private var tutorialRow: some View {
+        TutorialRow { model.actions?.openTutorial() }
     }
 
     @ViewBuilder
@@ -179,9 +190,23 @@ struct PanelView: View {
 
     // MARK: Barra inferiore
 
+    /// La scritta "Sviluppata da 8 wave" c'è quando entra per intero; se lo spazio non basta,
+    /// per esempio nella finestra stretta senza anteprima, la precedenza va ai tasti.
     private var footer: some View {
+        ViewThatFits(in: .horizontal) {
+            footerContent(credits: true)
+            footerContent(credits: false)
+        }
+        .font(.system(size: 11))
+        .foregroundStyle(Palette.text2)
+        .padding(.leading, 20)
+        .padding(.trailing, 16)
+        .frame(height: 38)
+    }
+
+    private func footerContent(credits: Bool) -> some View {
         HStack(spacing: 16) {
-            Text(model.queue.isEmpty ? footerSummary : queueSummary)
+            Text(model.queue.isEmpty ? footerSummary : PanelText.queue(model.queue.count))
                 .monospacedDigit()
                 .lineLimit(1)
                 .foregroundStyle(model.queue.isEmpty ? Palette.text2 : Palette.text)
@@ -199,26 +224,98 @@ struct PanelView: View {
                     KeyHint(keys: ["esc"], label: "Svuota la coda")
                 }
             }
+            if credits {
+                Rectangle()
+                    .fill(Palette.separator)
+                    .frame(width: 0.5, height: 14)
+                Text(Credits.developedBy)
+                    .lineLimit(1)
+                    .fixedSize()
+            }
         }
-        .font(.system(size: 11))
-        .foregroundStyle(Palette.text2)
-        .padding(.leading, 20)
-        .padding(.trailing, 16)
-        .frame(height: 38)
     }
 
     private var footerSummary: String {
-        let days = settings.days
-        let period = days == 1 ? "ultimo giorno" : "ultimi \(days) giorni"
         guard model.terms.isEmpty else {
-            let count = model.results.count
-            return "\(count) \(count == 1 ? "risultato" : "risultati") · \(period)"
+            return PanelText.results(model.results.count, days: settings.days)
         }
-        let pinned = model.pinnedCount
-        let count = model.results.count - pinned
-        var summary = "\(period.capitalizedFirst) · \(count) \(count == 1 ? "elemento" : "elementi")"
+        return PanelText.summary(days: settings.days, count: model.results.count - model.pinnedCount,
+                                 pinned: model.pinnedCount)
+    }
+}
+
+/// Testi della finestra, usati anche dalle animazioni del tutorial perché dicano le stesse cose.
+enum PanelText {
+    /// Tasto per scegliere la riga in base alla posizione, solo per le prime nove: "3" a ricerca vuota
+    /// (il numero da solo incolla), "⌘3" mentre si cerca (i numeri sono testo, e ⌘ + numero mette in coda).
+    static func position(_ index: Int, searching: Bool) -> String? {
+        guard index < 9 else { return nil }
+        return searching ? "⌘\(index + 1)" : "\(index + 1)"
+    }
+
+    static func queue(_ count: Int) -> String {
+        "\(count) in coda · un clic senza ⌘ aggiunge l’ultimo e incolla tutto"
+    }
+
+    static func resultCount(_ count: Int) -> String {
+        count == 1 ? "1 risultato" : "\(count) risultati"
+    }
+
+    static func results(_ count: Int, days: Int) -> String {
+        "\(resultCount(count)) · \(period(days))"
+    }
+
+    static func summary(days: Int, count: Int, pinned: Int) -> String {
+        var summary = "\(period(days).capitalizedFirst) · \(count) \(count == 1 ? "elemento" : "elementi")"
         if pinned > 0 { summary += " · \(pinned) \(pinned == 1 ? "fissato" : "fissati")" }
         return summary
+    }
+
+    private static func period(_ days: Int) -> String {
+        days == 1 ? "ultimo giorno" : "ultimi \(days) giorni"
+    }
+}
+
+// MARK: - Riga del tutorial
+
+/// Riga verde chiaro al posto della nona finché la cronologia è quasi vuota: apre il tutorial.
+struct TutorialRow: View {
+    let onOpen: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(Palette.tutorial)
+                Image(systemName: "play.fill")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Color.white)
+            }
+            .frame(width: 28, height: 28)
+            Text("Scopri come si usa Copy8")
+                .font(.system(size: 13, weight: .medium))
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            KeyBadge(label: "9", selected: false)
+        }
+        .padding(.leading, 8)
+        .padding(.trailing, 12)
+        .frame(height: 44)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(hovering ? Palette.tutorialFillHover : Palette.tutorialFill)
+        )
+        .contentShape(Rectangle())
+        .padding(.horizontal, 8)
+        .onHover { hovering = $0 }
+        .onTapGesture(perform: onOpen)
+        .help("Guarda come si usa Copy8 (tasto 9)")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Scopri come si usa Copy8")
+        .accessibilityHint("Tasto 9")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction { onOpen() }
     }
 }
 
