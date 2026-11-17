@@ -1,4 +1,6 @@
 .build/
 build/
+# Le app e i DMG compilati per ogni piattaforma; platform/README.md resta nel repository.
+platform/*/
 .swiftpm/
 .DS_Store

@@ -5,22 +5,36 @@ che hai copiato negli ultimi giorni, dal più recente al più vecchio, con ricer
 
 ## Installare
 
-Scarica `Copy8-<versione>.dmg` dalla pagina Releases, aprilo e trascina Copy8 in Applicazioni. Serve macOS 14
+Scarica dalla pagina Releases il DMG per il tuo Mac, aprilo e trascina Copy8 in Applicazioni. Serve macOS 14
 o successivo.
+
+| Mac | DMG |
+|---|---|
+| Con chip Apple, M1 e successivi | `Copy8-<versione>-apple-silicon.dmg` |
+| Con processore Intel | `Copy8-<versione>-intel.dmg` |
+
+Per sapere quale hai, apri menu Apple › Informazioni su questo Mac: i Mac con chip Apple hanno la voce "Chip"
+con "Apple M…", quelli Intel la voce "Processore" con "Intel".
 
 Copy8 è firmata con il certificato Developer ID di 8 wave srl e autenticata da Apple, quindi si apre senza
 avvisi.
 
 ## Compilare
 
-Servono gli strumenti da riga di comando di Xcode (`xcode-select --install`).
+Servono gli strumenti da riga di comando di Xcode (`xcode-select --install`). Lo stesso codice viene compilato
+una volta per i Mac con chip Apple (arm64) e una per i Mac Intel (x86_64): le due app finiscono in
+[`platform/`](platform/README.md).
 
 ```bash
-scripts/build-app.sh              # crea build/Copy8.app
-scripts/build-app.sh --dmg        # crea anche build/Copy8-<versione>.dmg
-scripts/build-app.sh --notarize   # crea il DMG e lo fa autenticare da Apple, per distribuirlo
-scripts/build-app.sh --install    # la copia anche in /Applications
+scripts/build-app.sh                    # crea platform/apple-silicon/Copy8.app e platform/intel/Copy8.app
+scripts/build-app.sh --dmg              # crea anche un DMG per piattaforma
+scripts/build-app.sh --notarize         # crea i DMG e li fa autenticare da Apple, per distribuirli
+scripts/build-app.sh --install          # copia in /Applications la versione per questo Mac
+scripts/build-app.sh --platform intel   # una sola piattaforma, apple-silicon o intel: fa prima
 ```
+
+Su un Mac con chip Apple la versione Intel si prova con Rosetta, installandola con `--platform intel --install`;
+`--install` da solo rimette quella per il chip Apple.
 
 ## Pubblicare una versione
 
@@ -37,9 +51,11 @@ xcrun notarytool store-credentials "Copy8" --apple-id <Apple ID> --team-id GCQB4
 ```
 
 Poi, per ogni versione: aggiorna `CFBundleShortVersionString` e `CFBundleVersion` in `Support/Info.plist` e
-lancia `scripts/build-app.sh --notarize`. Lo script firma app e DMG, invia il DMG ad Apple, aspetta l'esito
-(di solito pochi minuti), aggancia il ticket al DMG e controlla che Gatekeeper lo accetti. Se Apple rifiuta,
-stampa il log con il motivo. Il file da pubblicare è `build/Copy8-<versione>.dmg`.
+lancia `scripts/build-app.sh --notarize`. Lo script firma le due app e i loro DMG, invia i DMG ad Apple uno
+alla volta, aspetta l'esito (di solito pochi minuti ciascuno), aggancia il ticket a ogni DMG e controlla che
+Gatekeeper lo accetti. Se Apple rifiuta, stampa il log con il motivo. I file da pubblicare, tutti e due nella
+stessa release, sono `platform/apple-silicon/Copy8-<versione>-apple-silicon.dmg` e
+`platform/intel/Copy8-<versione>-intel.dmg`.
 
 L'app vive nella barra dei menu e non compare nel Dock. La sua icona è una cartellina con un 8, che si riempie
 per un attimo quando Copy8 registra una copia. Il menu dell'icona mostra le ultime 5 copie, che si incollano
