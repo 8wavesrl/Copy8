@@ -264,3 +264,7 @@ README sono in `.github/assets/`.
 
 La finestra viene creata e disegnata una volta all'avvio e poi solo mostrata, così si apre al frame
 successivo alla scorciatoia.
+
+## Licenza
+
+[MIT](LICENSE)
