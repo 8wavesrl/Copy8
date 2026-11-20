@@ -357,6 +357,8 @@ mark { background: var(--highlight); color: inherit; border-radius: 2px; }
 
 .site-footer { border-top: 0.5px solid var(--separator); }
 .footer-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 72px; font-size: 14px; color: var(--text2); }
+.footer-link { color: var(--text2); }
+.footer-link:hover { color: var(--text); }
 .made-by { display: flex; align-items: center; gap: 10px; }
 /* Il logo è nero su trasparente: come nell'app prende il colore del testo. */
 .wave-logo {
