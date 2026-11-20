@@ -375,7 +375,7 @@ struct ClipRow: View {
                         // Un tocco sulla puntina ha la precedenza su quello della riga, che incollerebbe.
                         Image(systemName: item.pinned ? "pin.fill" : "pin")
                             .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(selected ? Color.white : Palette.text2)
+                            .foregroundStyle(selected ? Palette.onAccent : Palette.text2)
                             .frame(width: 20, height: 20)
                             .contentShape(Rectangle())
                             .onTapGesture(perform: onTogglePin)
@@ -389,9 +389,9 @@ struct ClipRow: View {
             Text(DayFormat.time.string(from: item.copiedAt))
                 .font(.system(size: 11))
                 .monospacedDigit()
-                .foregroundStyle(selected ? Color.white : Palette.text2)
+                .foregroundStyle(selected ? Palette.onAccent : Palette.text2)
         }
-        .foregroundStyle(selected ? Color.white : Palette.text)
+        .foregroundStyle(selected ? Palette.onAccent : Palette.text)
         .padding(.leading, 8)
         .padding(.trailing, 12)
         .frame(height: 44)
@@ -419,12 +419,12 @@ struct KeyBadge: View {
         Text(label)
             .font(.system(size: 10, weight: .medium))
             .monospacedDigit()
-            .foregroundStyle(selected ? Color.white : Palette.text2)
+            .foregroundStyle(selected ? Palette.onAccent : Palette.text2)
             .padding(.horizontal, 4)
             .frame(minWidth: 18, minHeight: 18)
             .background(
                 RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .fill(selected ? Color.white.opacity(0.2) : Palette.fill)
+                    .fill(selected ? Palette.onAccent.opacity(0.2) : Palette.fill)
             )
             .accessibilityHidden(true)
     }
@@ -440,14 +440,14 @@ struct TypeIcon: View {
         ZStack {
             if let order {
                 RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .fill(selected ? Color.white : Palette.accent)
+                    .fill(selected ? Palette.onAccent : Palette.accent)
                 Text("\(order)")
                     .font(.system(size: 13, weight: .semibold))
                     .monospacedDigit()
-                    .foregroundStyle(selected ? Palette.accent : Color.white)
+                    .foregroundStyle(selected ? Palette.accent : Palette.onAccent)
             } else {
                 RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .fill(selected ? Color.white.opacity(0.2) : Palette.fill)
+                    .fill(selected ? Palette.onAccent.opacity(0.2) : Palette.fill)
             }
             if order != nil {
                 EmptyView()
@@ -455,12 +455,12 @@ struct TypeIcon: View {
                 Circle()
                     .fill(swatch)
                     .overlay(Circle().strokeBorder(Color.black.opacity(0.2), lineWidth: 0.5))
-                    .overlay(Circle().strokeBorder(selected ? Color.white : Color.clear, lineWidth: 1.5).padding(-1.5))
+                    .overlay(Circle().strokeBorder(selected ? Palette.onAccent : Color.clear, lineWidth: 1.5).padding(-1.5))
                     .frame(width: 16, height: 16)
             } else {
                 Image(systemName: item.kind.symbol)
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(selected ? Color.white : Palette.iconForeground)
+                    .foregroundStyle(selected ? Palette.onAccent : Palette.iconForeground)
             }
         }
         .frame(width: 28, height: 28)

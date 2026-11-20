@@ -44,6 +44,8 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         recorder.stop()
         history.commitClear()
+        // La tavolozza dei colori serve solo alle impostazioni: si chiude con loro.
+        if NSColorPanel.sharedColorPanelExists { NSColorPanel.shared.orderOut(nil) }
     }
 }
 
@@ -173,6 +175,8 @@ struct SettingsView: View {
         .frame(maxHeight: Self.maxHeight)
         .foregroundStyle(Palette.text)
         .background(Palette.window)
+        // Interruttori e cursore prendono il colore di Copy8 invece di quello scelto per il Mac.
+        .tint(Palette.accent)
         .onAppear {
             daysText = String(settings.days)
             trusted = Paster.isTrusted
@@ -296,6 +300,13 @@ struct SettingsView: View {
                 .pickerStyle(.segmented)
                 .labelsHidden()
                 .fixedSize()
+            }
+            SettingsRow(label: "Colore") {
+                // Apre la tavolozza dei colori di macOS; il colore si salva in sRGB, senza trasparenza.
+                ColorPicker("Colore", selection: Binding(get: { Color(nsColor: settings.accent.fill) },
+                                                         set: { settings.accent = Accent(NSColor($0)) }),
+                            supportsOpacity: false)
+                    .labelsHidden()
             }
             SettingsRow(label: "Nella barra dei menu") {
                 Picker("Nella barra dei menu", selection: $settings.menuBar) {

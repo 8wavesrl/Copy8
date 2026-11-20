@@ -49,6 +49,10 @@ final class Settings {
     var theme: ThemePreference {
         didSet { defaults.set(theme.rawValue, forKey: Keys.theme); onChange?(.theme) }
     }
+    /// Le viste leggono il colore attraverso Tokens e Palette, quindi si ridisegnano da sole quando cambia.
+    var accent: Accent {
+        didSet { defaults.set(accent.hexString, forKey: Keys.accent); onChange?(.other) }
+    }
     var showPreview: Bool {
         didSet { defaults.set(showPreview, forKey: Keys.showPreview); onChange?(.preview) }
     }
@@ -84,6 +88,7 @@ final class Settings {
         static let days = "days"
         static let pasteDirectly = "pasteDirectly"
         static let theme = "theme"
+        static let accent = "accentColor"
         static let showPreview = "showPreview"
         static let glass = "glass"
         static let glassIntensity = "glassIntensity"
@@ -98,6 +103,7 @@ final class Settings {
             Keys.days: 7,
             Keys.pasteDirectly: true,
             Keys.theme: ThemePreference.system.rawValue,
+            Keys.accent: Accent.eightWave.hexString,
             Keys.showPreview: true,
             Keys.glass: true,
             Keys.glassIntensity: 60.0,
@@ -108,6 +114,7 @@ final class Settings {
         days = min(max(defaults.integer(forKey: Keys.days), Settings.dayRange.lowerBound), Settings.dayRange.upperBound)
         pasteDirectly = defaults.bool(forKey: Keys.pasteDirectly)
         theme = ThemePreference(rawValue: defaults.string(forKey: Keys.theme) ?? "") ?? .system
+        accent = Accent(hexString: defaults.string(forKey: Keys.accent) ?? "") ?? .eightWave
         showPreview = defaults.bool(forKey: Keys.showPreview)
         glass = defaults.bool(forKey: Keys.glass)
         glassIntensity = min(max(defaults.double(forKey: Keys.glassIntensity), 1), 100)

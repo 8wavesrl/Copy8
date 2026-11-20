@@ -143,7 +143,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 }
 
-/// L'icona della barra dei menu: una cartellina degli appunti con l'8 di Copy8. Immagine "template",
+/// L'icona della barra dei menu: una cartellina degli appunti con il simbolo di 8 wave. Immagine "template",
 /// quindi macOS la colora come le altre icone della barra, in chiaro e in scuro.
 enum MenuBarIcon {
     static let outline = make(filled: false)
@@ -169,17 +169,11 @@ enum MenuBarIcon {
             context?.compositingOperation = .sourceOver
             clip.fill()
 
-            // L'8 sotto la molletta: pieno sull'icona vuota, ritagliato su quella piena.
-            let attributes: [NSAttributedString.Key: Any] = [
-                .font: NSFont.systemFont(ofSize: 9, weight: .heavy),
-                .foregroundColor: NSColor.black,
-            ]
-            let digit = "8" as NSString
-            let size = digit.size(withAttributes: attributes)
+            // Il simbolo di 8 wave sotto la molletta: pieno sull'icona vuota, ritagliato su quella piena.
             let area = NSRect(x: board.minX, y: board.minY, width: board.width, height: 12)
-            let origin = NSPoint(x: area.midX - size.width / 2, y: area.midY - size.height / 2)
+            let mark = NSBezierPath(cgPath: EightWaveMark.path(center: NSPoint(x: area.midX, y: area.midY), width: 9.5))
             if filled { context?.compositingOperation = .destinationOut }
-            digit.draw(at: origin, withAttributes: attributes)
+            mark.fill()
             return true
         }
         image.isTemplate = true

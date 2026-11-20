@@ -57,9 +57,28 @@ Gatekeeper lo accetti. Se Apple rifiuta, stampa il log con il motivo. I file da 
 stessa release, sono `platform/apple-silicon/Copy8-<versione>-apple-silicon.dmg` e
 `platform/intel/Copy8-<versione>-intel.dmg`.
 
-L'app vive nella barra dei menu e non compare nel Dock. La sua icona è una cartellina con un 8, che si riempie
-per un attimo quando Copy8 registra una copia. Il menu dell'icona mostra le ultime 5 copie, che si incollano
-con un clic, e porta alle impostazioni; ci si arriva anche con ⌘, a finestra aperta.
+L'app vive nella barra dei menu e non compare nel Dock. La sua icona è una cartellina con il simbolo di 8 wave,
+che si riempie per un attimo quando Copy8 registra una copia. Il menu dell'icona mostra le ultime 5 copie, che
+si incollano con un clic, e porta alle impostazioni; ci si arriva anche con ⌘, a finestra aperta.
+
+## Sito
+
+La pagina di presentazione è in `docs/`, pronta per GitHub Pages: `index.html`, con stile, immagini e finestra
+di prova in `docs/assets/`. Non usa librerie né caratteri esterni e i percorsi sono relativi, quindi funziona
+copiata in qualsiasi cartella o repository. Per vederla in locale:
+
+```bash
+python3 -m http.server -d docs 8000   # poi apri http://localhost:8000
+```
+
+Aperta con un doppio clic funziona lo stesso, ma Chrome non mostra il logo di 8 wave.
+
+A ogni versione aggiorna in `docs/index.html` i due link ai DMG e il numero di versione, sotto il commento
+"Ogni versione". Il viola è quello di [8wave.it](https://www.8wave.it/), lo stesso del colore predefinito
+dell'app (`Accent.eightWave` in `Theme.swift`): #9365FF, con #7E56DA al passaggio del mouse. Gli altri colori e le
+misure della finestra di prova vengono da `Theme.swift` e `PanelView.swift`: se cambiano lì, vanno riportati in
+`docs/assets/site.css`. Se cambia l'icona, dopo una compilazione copia `build/AppIcon.iconset/icon_256x256@2x.png`
+in `docs/assets/copy8-icon.png` e `icon_32x32@2x.png` in `docs/assets/favicon.png`.
 
 ## Permesso Accessibilità
 
@@ -133,6 +152,9 @@ pagina, esc chiude.
 - **Apri la cronologia**: clicca e premi la nuova combinazione (serve ⌘, ⌃ o ⌥).
 - **Avvia al login**.
 - **Tema**: Sistema, Chiaro, Scuro.
+- **Colore**: qualsiasi colore, scelto con la tavolozza dei colori di macOS; di serie il viola di 8 wave
+  (#9365FF). Colora la riga selezionata, la coda, i link, gli interruttori delle impostazioni e il tutorial. Il
+  testo sopra diventa bianco o nero e i link si scuriscono o si schiariscono, perché si leggano con ogni colore.
 - **Nella barra dei menu**: Icona (predefinita), Icona e ultima copia (i primi 10 caratteri accanto
   all'icona, visibili anche quando condividi lo schermo), Nascosta. Senza icona le impostazioni si aprono dalla
   finestra con ⌘, oppure riaprendo Copy8 da Applicazioni.
@@ -165,6 +187,7 @@ Copy8 ignora un testo più lungo di un milione di caratteri e un'immagine più g
 | `Paster.swift` | Scrive negli appunti e simula ⌘V |
 | `HotKey.swift` | Scorciatoia globale (Carbon, non richiede permessi) |
 | `StatusBar.swift` | Icona e menu nella barra dei menu |
+| `EightWaveMark.swift` | Il simbolo di 8 wave, per l'icona della barra dei menu e per quella dell'app (`scripts/make-icon.swift`) |
 | `Credits.swift` | "Sviluppata da 8 wave": logo nelle impostazioni, scritta nella finestra e nel menu |
 | `SettingsView.swift`, `Settings.swift` | Impostazioni e loro salvataggio |
 | `Theme.swift` | Token del design system, chiaro e scuro |

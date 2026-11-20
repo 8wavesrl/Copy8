@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Copy8 · cronologia degli appunti per macOS</title>
+<meta name="description" content="Copy8 tiene la cronologia degli appunti del tuo Mac. Premi ⌥V in qualsiasi app, cerca quello che hai copiato e incollalo dove stavi scrivendo.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#F5F5F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1E1E20" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Copy8 · cronologia degli appunti per macOS">
+<meta property="og:description" content="Premi ⌥V in qualsiasi app, cerca quello che hai copiato e incollalo dove stavi scrivendo.">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/copy8-icon.png">
+<link rel="stylesheet" href="assets/site.css">
+<script>document.documentElement.classList.add("js")</script>
+<script src="assets/demo.js" defer></script>
+</head>
+<body>
+
+<svg class="sprite" aria-hidden="true">
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 6h8m4 0h4M4 12h2m4 0h10M4 18h10m4 0h2"/><circle cx="14" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="18" r="2"/></symbol>
+  <symbol id="i-clear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="m9.2 9.2 5.6 5.6m0-5.6-5.6 5.6"/></symbol>
+  <symbol id="i-text" viewBox="0 0 24 24"><path d="M4 6h16M4 10h11M4 14h16M4 18h11"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13.5a4 4 0 0 0 6 .4l2.6-2.6a4 4 0 0 0-5.7-5.7l-1.5 1.5"/><path d="M14 10.5a4 4 0 0 0-6-.4l-2.6 2.6a4 4 0 0 0 5.7 5.7l1.5-1.5"/></symbol>
+  <symbol id="i-code" viewBox="0 0 24 24"><path d="m8 7-5 5 5 5m8-10 5 5-5 5M13.5 4.5l-3 15"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></symbol>
+  <symbol id="i-photo" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="m21 16-5-5-9 8"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M9 4h6m-5 0v5.5L7 13h10l-3-3.5V4m-2 9v7"/></symbol>
+  <symbol id="i-pin-fill" viewBox="0 0 24 24"><path d="M8.2 4c0-.5.4-.8.8-.8h6c.4 0 .8.3.8.8s-.4.8-.8.8h-.2v4.4l3 3.5c.4.5.1 1.3-.6 1.3h-4.4v6a.8.8 0 0 1-1.6 0v-6H6.8c-.7 0-1-.8-.6-1.3l3-3.5V4.8H9c-.4 0-.8-.3-.8-.8z" class="solid"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11m-4.5-4.5L12 15l4.5-4.5M5 19.5h14"/></symbol>
+  <symbol id="i-laptop" viewBox="0 0 24 24"><rect x="4.5" y="5" width="15" height="10.5" rx="1.5"/><path d="M2.5 19h19"/></symbol>
+  <symbol id="i-appearance" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" class="solid"/></symbol>
+</svg>
+
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <a class="brand" href="#">
+      <img src="assets/copy8-icon.png" alt="" width="32" height="32">
+      <span>Copy8</span>
+    </a>
+    <nav class="topnav" aria-label="Sezioni">
+      <a href="#funzioni">Funzioni</a>
+      <a href="#tastiera">Tastiera</a>
+      <a href="#installare">Installare</a>
+    </nav>
+    <a class="btn btn-small" href="#scarica">Scarica</a>
+  </div>
+</header>
+
+<main>
+  <section class="hero" id="scarica">
+    <div class="wrap">
+      <img class="hero-icon" src="assets/copy8-icon.png" alt="" width="112" height="112">
+      <h1>Ritrova tutto quello che hai copiato</h1>
+      <p class="lead">Copy8 tiene la cronologia degli appunti del tuo Mac. Premi <kbd class="inline-key">⌥</kbd><kbd class="inline-key">V</kbd> in qualsiasi app, cerca quello che ti serve e incollalo dove stavi scrivendo.</p>
+
+      <!-- Ogni versione: aggiorna i due link e il numero qui sotto (vedi "Sito" nel README). -->
+      <div class="downloads">
+        <a class="btn btn-primary" href="https://github.com/tpearrr/Copy8/releases/download/v1.2.1/Copy8-1.2.1-apple-silicon.dmg">
+          <svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>
+          <span class="btn-text"><span>Scarica per chip Apple</span><small>Mac con M1 e successivi</small></span>
+        </a>
+        <a class="btn btn-secondary" href="https://github.com/tpearrr/Copy8/releases/download/v1.2.1/Copy8-1.2.1-intel.dmg">
+          <svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>
+          <span class="btn-text"><span>Scarica per Intel</span><small>Mac con processore Intel</small></span>
+        </a>
+      </div>
+      <p class="download-meta">Versione 1.2.1 · macOS 14 o successivo · Firmata da 8 wave srl e autenticata da Apple</p>
+      <details class="which-mac">
+        <summary>Che Mac ho?</summary>
+        <p>Apri menu Apple › Informazioni su questo Mac. Se c’è la voce «Chip» con «Apple M…», scarica la versione per chip Apple. Se c’è la voce «Processore» con «Intel», scarica quella per Intel.</p>
+      </details>
+    </div>
+
+    <div class="wrap">
+      <div class="stage" data-demo>
+        <div class="note" aria-hidden="true">
+          <div class="note-titlebar">
+            <span class="lights"><i></i><i></i><i></i></span>
+            <span class="note-title">Nota</span>
+          </div>
+          <div class="note-text" data-note><p>Da fare oggi:</p></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <svg class="icon search-icon" aria-hidden="true"><use href="#i-search"/></svg>
+            <input class="search" type="text" data-search placeholder="Cerca negli appunti, o premi 1–9"
+                   aria-label="Prova la ricerca di Copy8" role="combobox" aria-expanded="true"
+                   aria-controls="demo-list" autocomplete="off" spellcheck="false">
+            <span class="result-count" data-count hidden></span>
+            <button class="icon-button clear" type="button" data-clear hidden aria-label="Cancella ricerca">
+              <svg class="icon" aria-hidden="true"><use href="#i-clear"/></svg>
+            </button>
+            <span class="icon-button settings" aria-hidden="true">
+              <svg class="icon" aria-hidden="true"><use href="#i-sliders"/></svg>
+            </span>
+          </div>
+          <div class="panel-body">
+            <div class="list" id="demo-list" role="listbox" aria-label="Cronologia di esempio" data-list></div>
+            <div class="preview" data-preview aria-live="off"></div>
+          </div>
+          <div class="panel-footer">
+            <span class="summary" data-summary></span>
+            <span class="hints">
+              <span class="hint"><kbd>↩</kbd>Incolla</span>
+              <span class="hint hint-pin"><kbd>⌘</kbd><kbd>P</kbd><span data-pin-label>Fissa</span></span>
+              <span class="hint hint-plain"><kbd>⌥</kbd><kbd>↩</kbd>Testo semplice</span>
+              <span class="hint hint-close"><kbd>esc</kbd>Chiudi</span>
+            </span>
+            <span class="credits">Sviluppata da 8 wave</span>
+          </div>
+        </div>
+
+        <div class="toast" data-toast role="status">
+          <svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>
+          <span data-toast-text></span>
+        </div>
+      </div>
+      <p class="stage-caption">Prova la finestra: scrivi per cercare, scegli una riga con il mouse o con ↑ ↓, poi premi ↩ o il suo numero. I contenuti sono di esempio.</p>
+    </div>
+  </section>
+
+  <section class="section" id="funzioni">
+    <div class="wrap">
+      <h2>Cosa fa Copy8</h2>
+      <ul class="features">
+        <li class="feature">
+          <div class="feature-visual"><kbd class="stage-key">⌥</kbd><kbd class="stage-key">V</kbd></div>
+          <h3>Si apre subito</h3>
+          <p>La scorciatoia funziona in qualsiasi app e la finestra è già pronta: compare appena premi i tasti. La combinazione si cambia nelle impostazioni.</p>
+        </li>
+        <li class="feature">
+          <div class="feature-visual"><span class="sample-text"><mark>Fatt</mark>ura 2026-118 · 1.250,00 €</span></div>
+          <h3>Trova anche quello che ricordi a metà</h3>
+          <p>Basta iniziare a scrivere. La ricerca guarda tutto il testo copiato e il nome dell’app di origine, senza badare a maiuscole e accenti. Con più parole trova gli elementi che le contengono tutte.</p>
+        </li>
+        <li class="feature">
+          <div class="feature-visual"><span class="key-badge">1</span><span class="key-badge">2</span><span class="key-badge">3</span></div>
+          <h3>Incolla con un tasto</h3>
+          <p>Il numero accanto alla riga la incolla nell’app attiva, come ↩ o un clic. ⌥↩ incolla come testo semplice, ⇧ clic incolla e lascia aperta la finestra.</p>
+        </li>
+        <li class="feature">
+          <div class="feature-visual"><span class="order">1</span><span class="order">2</span><span class="order">3</span></div>
+          <h3>Più elementi insieme</h3>
+          <p>Tieni premuto ⌘ e scegli le righe nell’ordine che vuoi, poi l’ultima senza ⌘: Copy8 le incolla tutte, una per riga.</p>
+        </li>
+        <li class="feature">
+          <div class="feature-visual"><span class="type-icon"><svg class="icon" aria-hidden="true"><use href="#i-pin-fill"/></svg></span></div>
+          <h3>Fissa quello che ti serve sempre</h3>
+          <p>Con la puntina o ⌘P un elemento sale tra i Fissati e non viene mai cancellato. Il resto si cancella da solo dopo i giorni che scegli, 7 se non cambi niente.</p>
+        </li>
+        <li class="feature">
+          <div class="feature-visual">
+            <span class="type-icon"><svg class="icon" aria-hidden="true"><use href="#i-text"/></svg></span>
+            <span class="type-icon"><svg class="icon" aria-hidden="true"><use href="#i-link"/></svg></span>
+            <span class="type-icon"><svg class="icon" aria-hidden="true"><use href="#i-code"/></svg></span>
+            <span class="type-icon"><span class="swatch" style="background:#9365FF"></span></span>
+            <span class="type-icon"><svg class="icon" aria-hidden="true"><use href="#i-photo"/></svg></span>
+            <span class="type-icon"><svg class="icon" aria-hidden="true"><use href="#i-doc"/></svg></span>
+          </div>
+          <h3>Riconosce quello che copi</h3>
+          <p>Testo, link, codice, colori, immagini e file, ognuno con la sua anteprima. Il testo formattato si incolla così com’era.</p>
+        </li>
+      </ul>
+
+      <div class="pair">
+        <div class="pair-item">
+          <span class="type-icon type-icon-large"><svg class="icon" aria-hidden="true"><use href="#i-laptop"/></svg></span>
+          <div>
+            <h3>Resta tutto sul tuo Mac</h3>
+            <p>Copy8 non ha account e non si collega a internet: la cronologia sta in <code>~/Library/Application Support/Copy8</code> e non esce dal Mac. Salta le password e quello che i password manager segnano come riservato.</p>
+          </div>
+        </div>
+        <div class="pair-item">
+          <span class="type-icon type-icon-large"><svg class="icon" aria-hidden="true"><use href="#i-appearance"/></svg></span>
+          <div>
+            <h3>Come piace a te</h3>
+            <p>Tema chiaro o scuro, il colore che preferisci, effetto vetro con l’intensità che vuoi, da 1 a 365 giorni di cronologia e la tua scorciatoia. Nella barra dei menu c’è una cartellina con il simbolo di 8 wave, che apre le ultime 5 copie.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="tastiera">
+    <div class="wrap">
+      <h2>Dalla tastiera</h2>
+      <p class="section-lead">Copy8 si usa tutto senza mouse.</p>
+      <dl class="shortcuts">
+        <div><dt><kbd>⌥</kbd><kbd>V</kbd></dt><dd>Apre la cronologia, da qualsiasi app</dd></div>
+        <div><dt><kbd>↑</kbd><kbd>↓</kbd></dt><dd>Scegli l’elemento</dd></div>
+        <div><dt><kbd>↩</kbd></dt><dd>Incolla nell’app attiva</dd></div>
+        <div><dt><kbd>⌥</kbd><kbd>↩</kbd></dt><dd>Incolla come testo semplice</dd></div>
+        <div><dt><kbd>1</kbd><span class="to">…</span><kbd>9</kbd></dt><dd>Incolla l’elemento in quella posizione, a ricerca vuota</dd></div>
+        <div><dt><kbd>⇧</kbd><span class="plus">clic</span></dt><dd>Incolla e lascia aperta la finestra</dd></div>
+        <div><dt><kbd>⌘</kbd><span class="plus">clic</span></dt><dd>Mette la riga in coda, per incollare più elementi insieme</dd></div>
+        <div><dt><kbd>⌘</kbd><kbd>C</kbd></dt><dd>Copia senza incollare</dd></div>
+        <div><dt><kbd>⌘</kbd><kbd>P</kbd></dt><dd>Fissa l’elemento, o lo toglie dai fissati</dd></div>
+        <div><dt><kbd>⌘</kbd><kbd>⌫</kbd></dt><dd>Elimina l’elemento</dd></div>
+        <div><dt><kbd>⌘</kbd><kbd>,</kbd></dt><dd>Impostazioni</dd></div>
+        <div><dt><kbd>esc</kbd></dt><dd>Svuota la coda, poi la ricerca, poi chiude</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <section class="section" id="installare">
+    <div class="wrap">
+      <h2>Installare</h2>
+      <ol class="steps">
+        <li>
+          <h3>Scarica il DMG</h3>
+          <p><a href="#scarica">Quello per il tuo Mac</a>, chip Apple o Intel. Serve macOS 14 o successivo.</p>
+        </li>
+        <li>
+          <h3>Trascina Copy8 in Applicazioni</h3>
+          <p>Apri il DMG e trascina l’icona sulla cartella Applicazioni. Se avevi una versione precedente, sostituiscila.</p>
+        </li>
+        <li>
+          <h3>Dai il permesso Accessibilità</h3>
+          <p>In Impostazioni di Sistema › Privacy e sicurezza › Accessibilità attiva Copy8: serve per incollare direttamente nell’app attiva. Senza, Copy8 copia negli appunti e incolli tu con ⌘V.</p>
+        </li>
+        <li>
+          <h3>Premi ⌥V</h3>
+          <p>Si apre la cronologia. Finché è quasi vuota, la riga verde «Scopri come si usa Copy8» apre un tutorial con quattro animazioni.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <span class="made-by"><span class="wave-logo" role="img" aria-label="8 wave"></span>Sviluppata da 8 wave srl</span>
+    <span>Copy8 per macOS</span>
+  </div>
+</footer>
+
+</body>
+</html>

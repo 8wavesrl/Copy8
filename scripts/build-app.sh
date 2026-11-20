@@ -80,9 +80,11 @@ VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" Support/
 MIN_MACOS=$(/usr/libexec/PlistBuddy -c "Print LSMinimumSystemVersion" Support/Info.plist)
 
 mkdir -p build
-if [ ! -f build/AppIcon.icns ]; then
+# L'icona si ridisegna solo se manca o se il suo disegno è cambiato dall'ultima volta.
+if [ ! -f build/AppIcon.icns ] || [ scripts/make-icon.swift -nt build/AppIcon.icns ] \
+    || [ Sources/Copy8/EightWaveMark.swift -nt build/AppIcon.icns ]; then
     rm -rf build/AppIcon.iconset
-    swiftc -O scripts/make-icon.swift -o build/make-icon
+    swiftc -O -parse-as-library Sources/Copy8/EightWaveMark.swift scripts/make-icon.swift -o build/make-icon
     build/make-icon build/AppIcon.iconset
     iconutil -c icns build/AppIcon.iconset -o build/AppIcon.icns
 fi
